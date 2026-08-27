@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for looking at ios-chat.
+Thanks for looking at Bimbel.
 
 ## Scope
 
-This repo is the conversation UI of a native iOS messenger. In scope: chat thread, bubbles, composer, keyboard, replies, media in a thread. Out of scope for now: Status, Calls, Settings, backend/auth unless a chat feature needs it.
+This repo is the conversation UI of Bimbel, a native iOS messenger. In scope: chat thread, bubbles, composer, keyboard, replies, media in a thread. Out of scope for now: Status, Calls, Settings, backend/auth unless a chat feature needs it.
 
 ## How to help
 
