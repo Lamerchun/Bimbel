@@ -237,7 +237,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "sample-thread",
                 title: "Ada",
-                preview: "Photo",
+                preview: "See you there.",
                 timestamp: now.addingTimeInterval(-2 * 60),
                 avatar: adaAvatar,
                 unreadCount: 4
@@ -339,12 +339,19 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             Message(id: "m-17", senderID: them, sentAt: at(14), kind: .text("I'll grab the window table.", preview: nil), isOutgoing: false),
             Message(id: "m-18", senderID: them, sentAt: at(8), kind: .text("Don't forget the keys this time.", preview: nil), isOutgoing: false),
             Message(id: "m-19", senderID: me, sentAt: at(4), kind: .text("Already in my pocket.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-20", senderID: them, sentAt: at(2), kind: .text("See you there.", preview: nil), isOutgoing: false),
             Message(
-                id: "m-21",
+                id: "m-20",
+                senderID: them,
+                sentAt: at(3),
+                kind: .image(Media(source: incomingPhoto, width: 720, height: 540)),
+                isOutgoing: false
+            ),
+            Message(id: "m-21", senderID: me, sentAt: at(2), kind: .text("Got it.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(
+                id: "m-22",
                 senderID: them,
                 sentAt: at(1),
-                kind: .image(Media(source: incomingPhoto, width: 720, height: 960)),
+                kind: .text("See you there.", preview: nil),
                 reactions: [Reaction(emoji: "👍", userIDs: [me])],
                 isOutgoing: false
             )
