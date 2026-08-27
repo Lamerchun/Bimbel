@@ -146,11 +146,11 @@ open class ConversationViewController: UIViewController {
         chatLayout.settings.estimatedItemSize = CGSize(width: UIScreen.main.bounds.width, height: 84)
         chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
         chatLayout.settings.additionalInsets = UIEdgeInsets(
-            top: theme.layout.composerGap,
+            top: theme.layout.listComposerGap,
             left: 0,
             bottom: ComposerKeyboardTracker.layoutBottomPadding(
                 composerHeight: composer.bounds.height,
-                breathing: theme.layout.composerGap
+                listComposerGap: theme.layout.listComposerGap
             ),
             right: 0
         )
@@ -265,7 +265,7 @@ open class ConversationViewController: UIViewController {
     private func bindKeyboardIfNeeded() {
         guard !didBindKeyboard else { return }
         didBindKeyboard = true
-        keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
+        keyboardTracker.listComposerGap = theme.layout.listComposerGap
         composer.setContentHuggingPriority(.required, for: .vertical)
         composer.setContentCompressionResistancePriority(.required, for: .vertical)
         keyboardTracker.onApplied = { [weak self] _, layoutBottom, flushingLayout in
@@ -273,22 +273,35 @@ open class ConversationViewController: UIViewController {
             // `flushingLayout` is only true outside collection callbacks (crash contract).
             if flushingLayout { self?.pinToBottomIfNeeded() }
         }
-        keyboardTracker.attach(host: view, composer: composer, collectionView: collectionView)
+        keyboardTracker.attach(
+            host: view,
+            composer: composer,
+            accessoryBar: accessoryContainer,
+            collectionView: collectionView
+        )
         dockComposerInHost()
     }
 
     private func moveComposerToAccessory() {
         guard !isComposerInAccessory else {
             accessoryContainer.invalidateIntrinsicContentSize()
+            reloadInputViews()
             return
         }
         NSLayoutConstraint.deactivate(dockConstraints)
         fabAboveComposer?.isActive = false
         fabAboveKeyboard?.isActive = true
         accessoryContainer.embed(composer)
-        composer.textView.accessoryContainer = accessoryContainer
         isComposerInAccessory = true
         keyboardTracker.isComposerInAccessory = true
+        // Text view lives inside the accessory. Returning that ancestor as
+        // `inputAccessoryView` is recursive and UIKit drops the bar — the
+        // covering edge then becomes the keys. The VC owns the accessory.
+        composer.textView.accessoryContainer = accessoryContainer
+        if !isFirstResponder {
+            _ = becomeFirstResponder()
+        }
+        reloadInputViews()
         if composer.textView.isFirstResponder {
             composer.textView.reloadInputViews()
         }
@@ -360,15 +373,15 @@ open class ConversationViewController: UIViewController {
         fab.layer.cornerRadius = 22
         chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
         chatLayout.settings.additionalInsets = UIEdgeInsets(
-            top: theme.layout.composerGap,
+            top: theme.layout.listComposerGap,
             left: 0,
             bottom: ComposerKeyboardTracker.layoutBottomPadding(
                 composerHeight: composer.bounds.height,
-                breathing: theme.layout.composerGap
+                listComposerGap: theme.layout.listComposerGap
             ),
             right: 0
         )
-        keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
+        keyboardTracker.listComposerGap = theme.layout.listComposerGap
         collectionView.reloadData()
     }
 

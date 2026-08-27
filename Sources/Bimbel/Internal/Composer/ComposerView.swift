@@ -337,7 +337,11 @@ final class ComposerTextView: UITextView {
     weak var accessoryContainer: UIView?
 
     override var inputAccessoryView: UIView? {
-        get { accessoryContainer }
+        get {
+            guard let accessoryContainer else { return nil }
+            if isDescendant(of: accessoryContainer) { return nil }
+            return accessoryContainer
+        }
         set {}
     }
 }

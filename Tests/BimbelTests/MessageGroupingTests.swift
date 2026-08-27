@@ -92,6 +92,7 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(ConversationTheme.default.layout.sequenceGap, 10)
         XCTAssertEqual(ConversationTheme.default.radii.residualTail, 3)
         XCTAssertEqual(ConversationTheme.default.radii.bubble, 22)
+        XCTAssertEqual(ConversationTheme.default.layout.listComposerGap, 8)
         XCTAssertEqual(ConversationTheme.default.materials.headerBlurStyle, .systemChromeMaterial)
     }
 

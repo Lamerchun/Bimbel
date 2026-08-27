@@ -7,11 +7,10 @@ import UIKit
 /// is docked in the conversation VC at the safe-area bottom.
 ///
 /// Insets come from the top of the **composer** (docked or in the accessory)
-/// so the last bubble clears the floating bar. The keyboard frame is used as
-/// a second covering edge; do not add keyboard height + composer height when
-/// the frame already includes the accessory. A self-sizing accessory often
-/// sits *above* a keys-only keyboard frame — that case still adds composer
-/// height. While docked, the inset is composer height + home-indicator + gap.
+/// so the last bubble clears the floating bar by `listComposerGap` (8).
+/// The covering edge is the composer top, never the keys. A keys-only keyboard
+/// frame still adds composer height once so the bar sitting on the keys is
+/// cleared. Do not add residual tail — it lives inside the cell.
 ///
 /// `flushingLayout` may only be true outside collection view callbacks. Forcing a
 /// layout pass from `scrollViewDidScroll` or `viewDidLayoutSubviews` runs while
@@ -21,13 +20,14 @@ import UIKit
 final class ComposerKeyboardTracker {
     private weak var host: UIView?
     private weak var composer: UIView?
+    private weak var accessoryBar: UIView?
     private weak var collectionView: UICollectionView?
     private var lastInset: CGFloat = -1
     private var lastKeyboardFrameInScreen: CGRect?
     private var observers: [NSObjectProtocol] = []
 
     var isComposerInAccessory = false
-    var bottomBreathingRoom: CGFloat = 8
+    var listComposerGap: CGFloat = ConversationTheme.Layout().listComposerGap
     /// Depth while this tracker writes `contentInset` / notifies `onApplied`.
     /// Nested `scrollViewDidScroll` → `syncListInsets()` must not clear the flag
     /// before the outer write finishes, or `isNearBottom` flips false and the
@@ -38,9 +38,15 @@ final class ComposerKeyboardTracker {
         didSet { applyDismissMode() }
     }
 
-    func attach(host: UIView, composer: UIView, collectionView: UICollectionView) {
+    func attach(
+        host: UIView,
+        composer: UIView,
+        accessoryBar: UIView? = nil,
+        collectionView: UICollectionView
+    ) {
         self.host = host
         self.composer = composer
+        self.accessoryBar = accessoryBar
         self.collectionView = collectionView
         applyDismissMode()
         observeKeyboard()
@@ -69,13 +75,14 @@ final class ComposerKeyboardTracker {
             keyboardTop: keyboardTop(in: collectionView, host: host),
             collectionMaxY: collectionView.bounds.maxY,
             composerTopInCollection: composerTopInCollection(),
+            composerIsInAccessoryWindow: composerIsInAccessoryWindow,
             dockedComposerHeight: dockedComposerHeight(),
             safeAreaBottom: host.safeAreaInsets.bottom,
-            breathing: bottomBreathingRoom
+            listComposerGap: listComposerGap
         )
         let padding = Self.layoutBottomPadding(
             composerHeight: dockedComposerHeight(),
-            breathing: bottomBreathingRoom
+            listComposerGap: listComposerGap
         )
         let insetChanged = abs(overlap - lastInset) > 0.5
         // Hold `isNearBottom` across the inset write. `contentInset.bottom` growing
@@ -109,11 +116,11 @@ final class ComposerKeyboardTracker {
         return (contentHeight - visibleBottom) < threshold
     }
 
-    /// ChatLayout `additionalInsets.bottom`: composer height + gap so the last
-    /// item is laid out above the floating bar even if `contentInset` is only
-    /// the keyboard frame.
-    static func layoutBottomPadding(composerHeight: CGFloat, breathing: CGFloat) -> CGFloat {
-        (composerHeight > 1 ? composerHeight : 58) + breathing
+    /// ChatLayout `additionalInsets.bottom`: composer height + `listComposerGap`
+    /// so the last item is laid out above the floating bar even if `contentInset`
+    /// is only the keyboard frame. Does not add residual tail (that is inside the cell).
+    static func layoutBottomPadding(composerHeight: CGFloat, listComposerGap: CGFloat) -> CGFloat {
+        (composerHeight > 1 ? composerHeight : 58) + listComposerGap
     }
 
     /// Called after insets change. `flushingLayout` is true outside collection callbacks.
@@ -121,42 +128,71 @@ final class ComposerKeyboardTracker {
 
     /// Pure overlap math so docked vs accessory insets can be tested without UIKit layout.
     ///
-    /// Keyboard visible: cover from the composer top when that top sits at or
-    /// above the keyboard edge. A cross-window convert can return the *docked*
-    /// composer Y (below the keys) — treat that as keys-only and add composer
-    /// height once so the last bubble clears the accessory bar.
+    /// Covering edge is the **composer top**, never the keys. `contentInset.bottom`
+    /// = distance from the list bottom to that edge + `listComposerGap` (8).
+    /// A keys-only keyboard frame still adds composer height once so the bar
+    /// sitting on the keys is cleared. Residual tail is not added.
     static func overlap(
         isComposerInAccessory: Bool,
         keyboardTop: CGFloat,
         collectionMaxY: CGFloat,
         composerTopInCollection: CGFloat?,
+        composerIsInAccessoryWindow: Bool = false,
         dockedComposerHeight: CGFloat,
         safeAreaBottom: CGFloat,
-        breathing: CGFloat
+        listComposerGap: CGFloat
     ) -> CGFloat {
         let composerH = dockedComposerHeight > 1 ? dockedComposerHeight : 58
         if isComposerInAccessory {
-            let coveringTop: CGFloat
-            if let composerTop = composerTopInCollection, composerTop <= keyboardTop + 1 {
-                coveringTop = composerTop
-            } else {
-                coveringTop = keyboardTop - composerH
-            }
-            return max(composerH, collectionMaxY - coveringTop) + breathing
+            let coveringTop = accessoryCoveringTop(
+                keyboardTop: keyboardTop,
+                composerTopInCollection: composerTopInCollection,
+                composerIsInAccessoryWindow: composerIsInAccessoryWindow,
+                composerH: composerH
+            )
+            return max(composerH, collectionMaxY - coveringTop) + listComposerGap
         }
         if let composerTop = composerTopInCollection {
-            return max(composerH + safeAreaBottom, collectionMaxY - composerTop) + breathing
+            return max(composerH + safeAreaBottom, collectionMaxY - composerTop) + listComposerGap
         }
-        return composerH + safeAreaBottom + breathing
+        return composerH + safeAreaBottom + listComposerGap
+    }
+
+    /// Top of the accessory bar in collection coordinates.
+    /// Never returns the keys-only keyboard top as the covering edge.
+    static func accessoryCoveringTop(
+        keyboardTop: CGFloat,
+        composerTopInCollection: CGFloat?,
+        composerIsInAccessoryWindow: Bool,
+        composerH: CGFloat
+    ) -> CGFloat {
+        let barOnKeys = keyboardTop - composerH
+        guard let composerTop = composerTopInCollection else { return barOnKeys }
+        if composerTop < keyboardTop - 0.5 {
+            return composerTop
+        }
+        if composerIsInAccessoryWindow, abs(composerTop - keyboardTop) <= 1 {
+            return composerTop
+        }
+        return barOnKeys
     }
 
     private func dockedComposerHeight() -> CGFloat {
         composer?.bounds.height ?? 0
     }
 
+    private var composerIsInAccessoryWindow: Bool {
+        guard isComposerInAccessory else { return false }
+        guard let bar = accessoryBar ?? composer, let collectionView else { return false }
+        guard let window = bar.window else { return false }
+        return window !== collectionView.window
+    }
+
     private func composerTopInCollection() -> CGFloat? {
-        guard let composer, let collectionView, composer.bounds.height > 1 else { return nil }
-        let rect = composer.convert(composer.bounds, to: collectionView)
+        let bar = (isComposerInAccessory ? accessoryBar : nil) ?? composer
+        guard let bar, let collectionView, bar.bounds.height > 1 else { return nil }
+        if isComposerInAccessory, bar.window == nil { return nil }
+        let rect = bar.convert(bar.bounds, to: collectionView)
         guard rect.height > 1, rect.minY.isFinite else { return nil }
         return rect.minY
     }

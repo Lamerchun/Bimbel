@@ -340,6 +340,10 @@ public struct ConversationTheme: Sendable {
         public var headerAvatarSize: CGFloat
         public var hitTarget: CGFloat
         public var composerControlSize: CGFloat
+        /// Distance from the lowest pixel of the last cell (tail, time, reaction)
+        /// to the top edge of the composer. Not to the keyboard keys. Residual
+        /// tail lives inside the cell — do not add it on top of this gap.
+        public var listComposerGap: CGFloat
         public var composerGap: CGFloat
         public var replySwipeThreshold: CGFloat
         public var listHorizontalInset: CGFloat
@@ -356,6 +360,7 @@ public struct ConversationTheme: Sendable {
             hitTarget: CGFloat = 44,
             composerControlSize: CGFloat = 44,
             composerGap: CGFloat = 8,
+            listComposerGap: CGFloat = 8,
             replySwipeThreshold: CGFloat = 56,
             listHorizontalInset: CGFloat = 10
         ) {
@@ -369,6 +374,7 @@ public struct ConversationTheme: Sendable {
             self.headerAvatarSize = headerAvatarSize
             self.hitTarget = hitTarget
             self.composerControlSize = composerControlSize
+            self.listComposerGap = listComposerGap
             self.composerGap = composerGap
             self.replySwipeThreshold = replySwipeThreshold
             self.listHorizontalInset = listHorizontalInset
