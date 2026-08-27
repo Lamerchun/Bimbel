@@ -38,6 +38,9 @@ final class ComposerView: UIView, UITextViewDelegate {
     let stickerButton = HitTargetButton(type: .system)
     let cameraButton = HitTargetButton(type: .system)
     let actionButton = HitTargetButton(type: .system)
+    /// Accent Kreis behind mic/send. iOS 26 `UIButton.backgroundColor` fills a square.
+    let actionFill = ComposerAccentCircle()
+    private let actionHost = UIView()
     let replyBanner = ReplyQuoteView()
 
     private let stack = UIStackView()
@@ -132,14 +135,36 @@ final class ComposerView: UIView, UITextViewDelegate {
             placeholderLabel.centerYAnchor.constraint(equalTo: pill.centerYAnchor)
         ])
 
-        [plusButton, cameraButton, actionButton].forEach { button in
+        [plusButton, cameraButton].forEach { button in
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 button.widthAnchor.constraint(equalToConstant: 44),
                 button.heightAnchor.constraint(equalToConstant: 44)
             ])
         }
-        actionButton.layer.masksToBounds = true
+
+        actionHost.translatesAutoresizingMaskIntoConstraints = false
+        actionHost.backgroundColor = .clear
+        actionHost.isExclusiveTouch = false
+        NSLayoutConstraint.activate([
+            actionHost.widthAnchor.constraint(equalToConstant: 44),
+            actionHost.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        actionButton.backgroundColor = .clear
+        actionButton.translatesAutoresizingMaskIntoConstraints = false
+        actionFill.translatesAutoresizingMaskIntoConstraints = false
+        actionHost.addSubview(actionFill)
+        actionHost.addSubview(actionButton)
+        NSLayoutConstraint.activate([
+            actionFill.widthAnchor.constraint(equalToConstant: 40),
+            actionFill.heightAnchor.constraint(equalToConstant: 40),
+            actionFill.centerXAnchor.constraint(equalTo: actionHost.centerXAnchor),
+            actionFill.centerYAnchor.constraint(equalTo: actionHost.centerYAnchor),
+            actionButton.topAnchor.constraint(equalTo: actionHost.topAnchor),
+            actionButton.leadingAnchor.constraint(equalTo: actionHost.leadingAnchor),
+            actionButton.trailingAnchor.constraint(equalTo: actionHost.trailingAnchor),
+            actionButton.bottomAnchor.constraint(equalTo: actionHost.bottomAnchor)
+        ])
 
         row.axis = .horizontal
         row.alignment = .bottom
@@ -147,7 +172,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         row.addArrangedSubview(plusButton)
         row.addArrangedSubview(pill)
         row.addArrangedSubview(cameraButton)
-        row.addArrangedSubview(actionButton)
+        row.addArrangedSubview(actionHost)
 
         replyBanner.isHidden = true
         replyBanner.onClose = { [weak self] in
@@ -223,9 +248,13 @@ final class ComposerView: UIView, UITextViewDelegate {
         super.layoutSubviews()
         plusButton.layer.cornerRadius = 0
         plusButton.backgroundColor = .clear
-        // Camera and plus are glyphs only — no plate. Only mic/send gets the accent circle.
         cameraButton.layer.cornerRadius = 0
-        actionButton.layer.cornerRadius = actionButton.bounds.height / 2
+        cameraButton.backgroundColor = .clear
+        // Mic/send fill lives on `actionFill`, not `UIButton.backgroundColor`
+        // (iOS 26 paints that as a square). Plus and camera stay glyphs only.
+        actionButton.backgroundColor = .clear
+        actionButton.layer.cornerRadius = 0
+        actionButton.layer.masksToBounds = false
         pill.layer.cornerRadius = min(theme.radii.composerPill, pill.bounds.height / 2)
         delegate?.composerDidChangeHeight(self)
     }
@@ -271,15 +300,16 @@ final class ComposerView: UIView, UITextViewDelegate {
 
     func morphAction(sendable: Bool, animated: Bool) {
         let imageName = sendable ? "paperplane.fill" : "mic.fill"
-        let fill = sendable ? theme.colors.sendFill : theme.colors.sendFill
+        let fill = theme.colors.sendFill
         let updates = {
             self.actionButton.setImage(UIImage(systemName: imageName), for: .normal)
-            self.actionButton.backgroundColor = fill
+            self.actionButton.backgroundColor = .clear
+            self.actionFill.backgroundColor = fill
             self.actionButton.tintColor = self.theme.colors.sendIcon
             self.actionButton.accessibilityLabel = sendable ? "Send" : "Record voice message"
         }
         if animated {
-            UIView.transition(with: actionButton, duration: 0.22, options: [.transitionCrossDissolve, .curveEaseInOut], animations: updates)
+            UIView.transition(with: actionHost, duration: 0.22, options: [.transitionCrossDissolve, .curveEaseInOut], animations: updates)
         } else {
             updates()
         }
@@ -353,6 +383,27 @@ final class ComposerView: UIView, UITextViewDelegate {
 }
 
 final class ComposerTextView: UITextView {}
+
+/// 40 pt accent Kreis for mic/send. Not a `UIButton` background — iOS 26 fills that as a square.
+final class ComposerAccentCircle: UIView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        layer.masksToBounds = true
+        layer.cornerCurve = .circular
+        accessibilityIdentifier = "composer.action.fill"
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let side = min(bounds.width, bounds.height)
+        layer.cornerRadius = side / 2
+        layer.cornerCurve = .circular
+        layer.masksToBounds = true
+    }
+}
 
 extension ComposerView: ConversationBottomBar {
     var shouldAttachToKeyboardLayoutGuide: Bool { true }

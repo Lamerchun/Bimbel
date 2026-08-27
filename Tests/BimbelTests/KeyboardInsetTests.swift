@@ -96,4 +96,32 @@ final class KeyboardInsetTests: XCTestCase {
     func testTextViewHasNoInputAccessoryView() {
         XCTAssertNil(ComposerTextView().inputAccessoryView)
     }
+
+    func testMicSendFillIsACircleNotTheButtonBackground() {
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 80))
+        let composer = ComposerView()
+        host.addSubview(composer)
+        composer.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            composer.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            composer.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            composer.bottomAnchor.constraint(equalTo: host.bottomAnchor)
+        ])
+        composer.apply(theme: .default, sendable: false, sheetPresented: false)
+        host.layoutIfNeeded()
+
+        XCTAssertEqual(composer.actionButton.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+        XCTAssertEqual(composer.plusButton.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+        XCTAssertEqual(composer.cameraButton.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+        XCTAssertEqual(composer.actionFill.bounds.width, 40, accuracy: 0.5)
+        XCTAssertEqual(composer.actionFill.bounds.height, 40, accuracy: 0.5)
+        XCTAssertEqual(composer.actionFill.layer.cornerRadius, 20, accuracy: 0.5)
+        XCTAssertTrue(composer.actionFill.layer.masksToBounds)
+        XCTAssertEqual(composer.actionFill.backgroundColor, ConversationTheme.default.colors.sendFill)
+
+        composer.apply(theme: .default, sendable: true, sheetPresented: false)
+        host.layoutIfNeeded()
+        XCTAssertEqual(composer.actionButton.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+        XCTAssertEqual(composer.actionFill.backgroundColor, ConversationTheme.default.colors.sendFill)
+    }
 }

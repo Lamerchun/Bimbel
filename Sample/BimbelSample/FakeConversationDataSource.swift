@@ -17,10 +17,10 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         items = Self.seedItems(now: now)
         threads[adaID] = Self.seedAda(me: me, them: "ada")
         threads["jules"] = Self.shortThread(idPrefix: "j", peer: "jules", me: me, line: "Call me when you land.", minutesAgo: 80)
-        threads["design"] = Self.shortThread(idPrefix: "d", peer: "design", me: me, line: "Ship the inbox surface today.", minutesAgo: 180, outgoingLast: false)
-        threads["mira"] = Self.shortThread(idPrefix: "mi", peer: "mira", me: me, line: "Can you look at the header glass?", minutesAgo: 12)
-        threads["nico"] = Self.shortThread(idPrefix: "n", peer: "nico", me: me, line: "Voice lock feels right.", minutesAgo: 3 * 1_440)
-        threads["studio"] = Self.shortThread(idPrefix: "s", peer: "studio", me: me, line: "Muted this one on purpose.", minutesAgo: 2 * 1_440)
+        threads["design"] = Self.shortThread(idPrefix: "d", peer: "design", me: me, line: "Deck is in the shared folder.", minutesAgo: 180, outgoingLast: false)
+        threads["mira"] = Self.shortThread(idPrefix: "mi", peer: "mira", me: me, line: "Did you lock the studio?", minutesAgo: 12)
+        threads["nico"] = Self.shortThread(idPrefix: "n", peer: "nico", me: me, line: "Call me when you're free.", minutesAgo: 3 * 1_440)
+        threads["studio"] = Self.shortThread(idPrefix: "s", peer: "studio", me: me, line: "Catching up after the show.", minutesAgo: 2 * 1_440)
     }
 
     func snapshot() -> InboxSnapshot {
@@ -227,7 +227,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "design",
                 title: "Design",
-                preview: "Ship the inbox surface today.",
+                preview: "Deck is in the shared folder.",
                 timestamp: now.addingTimeInterval(-180 * 60),
                 avatar: .data(glyphData(title: "D", color: .systemTeal)),
                 unreadCount: 0,
@@ -245,7 +245,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "mira",
                 title: "Mira",
-                preview: "Can you look at the header glass?",
+                preview: "Did you lock the studio?",
                 timestamp: now.addingTimeInterval(-12 * 60),
                 avatar: .data(glyphData(title: "M", color: .systemPurple)),
                 unreadCount: 1,
@@ -262,7 +262,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "nico",
                 title: "Nico",
-                preview: "Voice lock feels right.",
+                preview: "Call me when you're free.",
                 timestamp: now.addingTimeInterval(-3 * 86_400),
                 avatar: .data(glyphData(title: "N", color: .systemBlue)),
                 unreadCount: 2
@@ -270,7 +270,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "studio",
                 title: "Studio",
-                preview: "Muted this one on purpose.",
+                preview: "Catching up after the show.",
                 timestamp: now.addingTimeInterval(-2 * 86_400),
                 avatar: .data(glyphData(title: "S", color: .systemGray)),
                 isMuted: true
