@@ -56,6 +56,24 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertEqual(overlap, 100)
     }
 
+    func testAccessoryIgnoresStaleDockedComposerTopBelowKeyboard() {
+        // Cross-window convert returned the docked Y (708) while keys sit at 500.
+        let overlap = ComposerKeyboardTracker.overlap(
+            isComposerInAccessory: true,
+            keyboardTop: 500,
+            collectionMaxY: 800,
+            composerTopInCollection: 708,
+            dockedComposerHeight: 58,
+            safeAreaBottom: 34,
+            breathing: 8
+        )
+        XCTAssertEqual(overlap, 366)
+    }
+
+    func testLayoutBottomPaddingIsComposerPlusGap() {
+        XCTAssertEqual(ComposerKeyboardTracker.layoutBottomPadding(composerHeight: 58, breathing: 8), 66)
+    }
+
     func testDockedInsetFallsBackToComposerPlusSafeArea() {
         let overlap = ComposerKeyboardTracker.overlap(
             isComposerInAccessory: false,

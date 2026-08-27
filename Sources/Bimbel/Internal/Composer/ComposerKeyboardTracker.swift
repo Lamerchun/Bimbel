@@ -63,20 +63,40 @@ final class ComposerKeyboardTracker {
             safeAreaBottom: host.safeAreaInsets.bottom,
             breathing: bottomBreathingRoom
         )
-        guard abs(overlap - lastInset) > 0.5 else { return }
+        let padding = Self.layoutBottomPadding(
+            composerHeight: dockedComposerHeight(),
+            breathing: bottomBreathingRoom
+        )
+        let insetChanged = abs(overlap - lastInset) > 0.5
+        guard insetChanged else {
+            if flushingLayout { onApplied?(overlap, padding, true) }
+            return
+        }
         lastInset = overlap
         var inset = collectionView.contentInset
         inset.bottom = overlap
         collectionView.contentInset = inset
         collectionView.verticalScrollIndicatorInsets.bottom = overlap
         collectionView.scrollIndicatorInsets.bottom = overlap
+        onApplied?(overlap, padding, flushingLayout)
     }
+
+    /// ChatLayout `additionalInsets.bottom`: composer height + gap so the last
+    /// item is laid out above the floating bar even if `contentInset` is only
+    /// the keyboard frame.
+    static func layoutBottomPadding(composerHeight: CGFloat, breathing: CGFloat) -> CGFloat {
+        (composerHeight > 1 ? composerHeight : 58) + breathing
+    }
+
+    /// Called after insets change. `flushingLayout` is true outside collection callbacks.
+    var onApplied: ((_ contentBottom: CGFloat, _ layoutBottom: CGFloat, _ flushingLayout: Bool) -> Void)?
 
     /// Pure overlap math so docked vs accessory insets can be tested without UIKit layout.
     ///
-    /// Keyboard visible: cover from the higher of (keyboard top, composer top).
-    /// If the keyboard frame is keys-only, composer top is above it and that
-    /// extra composer height is included once — never keyboard + composer twice.
+    /// Keyboard visible: cover from the composer top when that top sits at or
+    /// above the keyboard edge. A cross-window convert can return the *docked*
+    /// composer Y (below the keys) — treat that as keys-only and add composer
+    /// height once so the last bubble clears the accessory bar.
     static func overlap(
         isComposerInAccessory: Bool,
         keyboardTop: CGFloat,
@@ -89,15 +109,15 @@ final class ComposerKeyboardTracker {
         let composerH = dockedComposerHeight > 1 ? dockedComposerHeight : 58
         if isComposerInAccessory {
             let coveringTop: CGFloat
-            if let composerTop = composerTopInCollection {
-                coveringTop = min(keyboardTop, composerTop)
+            if let composerTop = composerTopInCollection, composerTop <= keyboardTop + 1 {
+                coveringTop = composerTop
             } else {
                 coveringTop = keyboardTop - composerH
             }
             return max(composerH, collectionMaxY - coveringTop) + breathing
         }
         if let composerTop = composerTopInCollection {
-            return max(0, collectionMaxY - composerTop) + breathing
+            return max(composerH + safeAreaBottom, collectionMaxY - composerTop) + breathing
         }
         return composerH + safeAreaBottom + breathing
     }

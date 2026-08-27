@@ -167,32 +167,27 @@ final class HitTargetButton: UIButton {
 }
 
 enum DeliveryTicks {
-    /// Thang's overlapping double-tick. Never SF `checkmark.circle`.
+    /// Thang's overlapping double-tick SVG. Never SF `checkmark` / `checkmark.circle`.
     static func image(for state: DeliveryState) -> UIImage? {
         switch state {
         case .sending:
             return UIImage(systemName: "clock")
         case .sent:
-            return templateTicks(double: false)
+            return drawn(double: false)
         case .delivered, .read:
-            return templateTicks(double: true)
+            return drawn(double: true)
         case .failed:
             return UIImage(systemName: "exclamationmark.circle.fill")
         }
     }
 
-    private static func templateTicks(double: Bool) -> UIImage {
-        let name = double ? "delivery-double-tick" : "delivery-single-tick"
-        if let image = BundleImage.template(name) { return image }
-        return drawn(double: double)
-    }
-
-    /// SVG paths (`delivery-double-tick.svg`) so missing catalog assets still cannot fall back to SF checks.
-    private static func drawn(double: Bool) -> UIImage {
+    /// Exact `delivery-double-tick.svg` polylines. Catalog PNGs ship alongside; drawing
+    /// is the runtime source of truth so a missed asset cannot fall back to SF checks.
+    static func drawn(double: Bool) -> UIImage {
         let size = CGSize(width: double ? 20 : 12, height: 12)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
-        format.scale = UIScreen.main.scale
+        format.scale = 3
         let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             func stroke(_ points: [CGPoint]) {
                 let path = UIBezierPath()

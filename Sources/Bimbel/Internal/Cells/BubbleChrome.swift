@@ -116,8 +116,8 @@ final class MetadataOverlay: UIView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            accessoryView.widthAnchor.constraint(equalToConstant: 20),
-            accessoryView.heightAnchor.constraint(equalToConstant: 12)
+            accessoryView.widthAnchor.constraint(equalToConstant: 22),
+            accessoryView.heightAnchor.constraint(equalToConstant: 13)
         ])
         stack.addArrangedSubview(timeLabel)
         stack.addArrangedSubview(accessoryView)

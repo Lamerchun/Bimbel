@@ -141,7 +141,10 @@ open class ConversationViewController: UIViewController {
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.composerGap,
             left: 0,
-            bottom: theme.layout.composerGap,
+            bottom: ComposerKeyboardTracker.layoutBottomPadding(
+                composerHeight: composer.bounds.height,
+                breathing: theme.layout.composerGap
+            ),
             right: 0
         )
 
@@ -258,6 +261,10 @@ open class ConversationViewController: UIViewController {
         keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
         composer.setContentHuggingPriority(.required, for: .vertical)
         composer.setContentCompressionResistancePriority(.required, for: .vertical)
+        keyboardTracker.onApplied = { [weak self] _, layoutBottom, flushingLayout in
+            self?.applyComposerLayoutPadding(layoutBottom)
+            if flushingLayout { self?.pinToBottomIfNeeded() }
+        }
         keyboardTracker.attach(host: view, composer: composer, collectionView: collectionView)
         dockComposerInHost()
     }
@@ -347,7 +354,10 @@ open class ConversationViewController: UIViewController {
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.composerGap,
             left: 0,
-            bottom: theme.layout.composerGap,
+            bottom: ComposerKeyboardTracker.layoutBottomPadding(
+                composerHeight: composer.bounds.height,
+                breathing: theme.layout.composerGap
+            ),
             right: 0
         )
         keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
@@ -371,6 +381,20 @@ open class ConversationViewController: UIViewController {
             collectionView.contentInset.top = top
             collectionView.verticalScrollIndicatorInsets.top = top
         }
+    }
+
+    /// ChatLayout lays the last item using `additionalInsets.bottom` as well as
+    /// `contentInset`. Keep that padding at composer height + gap.
+    private func applyComposerLayoutPadding(_ bottom: CGFloat) {
+        var insets = chatLayout.settings.additionalInsets
+        guard abs(insets.bottom - bottom) > 0.5 else { return }
+        insets.bottom = bottom
+        chatLayout.settings.additionalInsets = insets
+    }
+
+    private func pinToBottomIfNeeded() {
+        guard isNearBottom else { return }
+        scrollToBottom(animated: false)
     }
 
     private func scrollToBottom(animated: Bool) {

@@ -120,6 +120,28 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(decorations.map(\.mediaStack), [.first, .last])
     }
 
+    func testUnreadSeparatorIsCenteredChipNotHairline() {
+        let cell = UnreadSeparatorCell(frame: CGRect(x: 0, y: 0, width: 390, height: 36))
+        cell.configure(theme: .default)
+        XCTAssertEqual(cell.contentView.subviews.count, 1, "unread must be a single chip, no hairline view")
+        let chip = try XCTUnwrap(cell.contentView.subviews.first)
+        XCTAssertGreaterThan(chip.layer.cornerRadius, 8)
+        XCTAssertFalse(cell.contentView.subviews.contains { abs($0.frame.height - 1) < 0.5 })
+    }
+
+    func testDeliveryTicksAreOverlappingTemplateGlyphNotSFCheckmark() {
+        let sent = try XCTUnwrap(DeliveryTicks.image(for: .sent))
+        let delivered = try XCTUnwrap(DeliveryTicks.image(for: .delivered))
+        let read = try XCTUnwrap(DeliveryTicks.image(for: .read))
+        XCTAssertEqual(sent.size, CGSize(width: 12, height: 12))
+        XCTAssertEqual(delivered.size, CGSize(width: 20, height: 12))
+        XCTAssertEqual(read.size, CGSize(width: 20, height: 12))
+        XCTAssertEqual(sent.renderingMode, .alwaysTemplate)
+        XCTAssertEqual(delivered.renderingMode, .alwaysTemplate)
+        XCTAssertEqual(read.renderingMode, .alwaysTemplate)
+        XCTAssertGreaterThan(delivered.size.width, sent.size.width)
+    }
+
     func testDateChipSaysToday() {
         XCTAssertEqual(BimbelFormatters.dateChipText(Date()), "Today")
     }

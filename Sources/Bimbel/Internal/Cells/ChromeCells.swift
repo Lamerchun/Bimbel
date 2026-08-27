@@ -1,39 +1,53 @@
 import UIKit
 
+/// Centered pill used by the date chip and the unread marker. No hairline.
+final class ChromeChipView: PaddedLabel {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        textAlignment = .center
+        layer.masksToBounds = true
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func apply(text: String, theme: ConversationTheme) {
+        self.text = text
+        font = theme.fonts.chip
+        textColor = theme.colors.systemChipText
+        backgroundColor = theme.colors.systemChipFill
+        layer.cornerRadius = theme.radii.chip
+        insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+    }
+}
+
 final class DateChipCell: UICollectionViewCell {
     static let reuseID = "DateChipCell"
-    private let label = PaddedLabel()
+    private let chip = ChromeChipView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
-        label.textAlignment = .center
-        label.layer.masksToBounds = true
-        label.setContentHuggingPriority(.required, for: .horizontal)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal)
-        contentView.addSubview(label)
-        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.backgroundColor = .clear
+        contentView.addSubview(chip)
+        chip.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
-            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
+            chip.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            chip.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            chip.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
         ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(date: Date, theme: ConversationTheme) {
-        label.font = theme.fonts.chip
-        label.textColor = theme.colors.systemChipText
-        label.backgroundColor = theme.colors.systemChipFill
-        label.layer.cornerRadius = theme.radii.chip
-        label.insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
-        label.text = BimbelFormatters.dateChipText(date)
+        chip.apply(text: BimbelFormatters.dateChipText(date), theme: theme)
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        let size = label.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        let size = chip.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
         attributes.frame.size = CGSize(width: ceil(size.width), height: 36)
         return attributes
     }
@@ -41,40 +55,30 @@ final class DateChipCell: UICollectionViewCell {
 
 final class UnreadSeparatorCell: UICollectionViewCell {
     static let reuseID = "UnreadSeparatorCell"
-    private let label = PaddedLabel()
+    private let chip = ChromeChipView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
         contentView.backgroundColor = .clear
-        label.text = String(localized: "Unread messages")
-        label.textAlignment = .center
-        label.layer.masksToBounds = true
-        label.setContentHuggingPriority(.required, for: .horizontal)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal)
-        contentView.addSubview(label)
-        label.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(chip)
+        chip.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
-            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
+            chip.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            chip.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            chip.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
         ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(theme: ConversationTheme) {
-        // Same chip language as the date separator. No accent hairline.
-        label.font = theme.fonts.chip
-        label.textColor = theme.colors.systemChipText
-        label.backgroundColor = theme.colors.systemChipFill
-        label.layer.cornerRadius = theme.radii.chip
-        label.insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        chip.apply(text: String(localized: "Unread messages"), theme: theme)
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        let size = label.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        let size = chip.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
         attributes.frame.size = CGSize(width: ceil(size.width), height: 36)
         return attributes
     }
