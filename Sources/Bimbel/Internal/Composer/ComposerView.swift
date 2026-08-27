@@ -64,14 +64,14 @@ final class ComposerView: UIView, UITextViewDelegate {
         let plusLong = UILongPressGestureRecognizer(target: self, action: #selector(longPlus(_:)))
         plusButton.addGestureRecognizer(plusLong)
 
-        plusButton.setImage(UIImage(systemName: "plus", withConfiguration: .bimbelComposerLine), for: .normal)
+        plusButton.setImage(UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
         plusButton.accessibilityLabel = "Attach"
 
-        stickerButton.setImage(UIImage(systemName: "face.smiling", withConfiguration: .bimbelComposerLine), for: .normal)
+        stickerButton.setImage(UIImage(systemName: "face.smiling", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
         stickerButton.addTarget(self, action: #selector(tapSticker), for: .touchUpInside)
         stickerButton.accessibilityLabel = "Stickers"
 
-        cameraButton.setImage(UIImage(systemName: "camera", withConfiguration: .bimbelComposerLine), for: .normal)
+        cameraButton.setImage(UIImage(systemName: "camera", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
         cameraButton.addTarget(self, action: #selector(tapCamera), for: .touchUpInside)
         cameraButton.accessibilityLabel = "Camera"
 
@@ -230,7 +230,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         stickerButton.tintColor = theme.colors.composerIcon
 
         let plusName = sheetPresented ? "keyboard" : "plus"
-        plusButton.setImage(UIImage(systemName: plusName, withConfiguration: .bimbelComposerLine), for: .normal)
+        plusButton.setImage(UIImage(systemName: plusName, withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
         plusButton.accessibilityLabel = sheetPresented ? "Show keyboard" : "Attach"
         plusButton.accessibilityHint = sheetPresented ? nil : "Long press to open the photo library"
 
@@ -394,7 +394,7 @@ extension ComposerView: UIGestureRecognizerDelegate {
         return true
     }
 
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         guard isDismissPassthroughEnabled else { return false }
         let velocity = pan.velocity(in: self)
