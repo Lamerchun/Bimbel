@@ -124,4 +124,43 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertEqual(composer.actionButton.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
         XCTAssertEqual(composer.actionFill.backgroundColor, ConversationTheme.default.colors.sendFill)
     }
+
+    func testMessagePillIsACapsuleNotTheViewBackground() {
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 80))
+        let composer = ComposerView()
+        host.addSubview(composer)
+        composer.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            composer.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            composer.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            composer.bottomAnchor.constraint(equalTo: host.bottomAnchor)
+        ])
+        composer.apply(theme: .default, sendable: false, sheetPresented: false)
+        host.layoutIfNeeded()
+
+        XCTAssertEqual(composer.pill.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+        XCTAssertGreaterThan(composer.pillFill.bounds.height, 1)
+        XCTAssertEqual(
+            composer.pillFill.layer.cornerRadius,
+            composer.pillFill.bounds.height / 2,
+            accuracy: 0.5
+        )
+        XCTAssertGreaterThan(composer.pillFill.layer.cornerRadius, 1)
+        XCTAssertTrue(composer.pillFill.layer.masksToBounds)
+        XCTAssertEqual(composer.pillFill.layer.cornerCurve, .continuous)
+        XCTAssertEqual(composer.pillFill.backgroundColor, ConversationTheme.default.colors.composerFill)
+        XCTAssertEqual(composer.pill.layer.borderWidth, 0)
+    }
+
+    func testCapsuleRadiusIsNeverZeroWhenHeightIsZero() {
+        let fill = ComposerCapsuleFill(frame: .zero)
+        fill.applyCapsule()
+        XCTAssertEqual(fill.layer.cornerRadius, 20)
+        fill.bounds = CGRect(x: 0, y: 0, width: 200, height: 40)
+        fill.applyCapsule()
+        XCTAssertEqual(fill.layer.cornerRadius, 20)
+        fill.bounds = CGRect(x: 0, y: 0, width: 200, height: 80)
+        fill.applyCapsule()
+        XCTAssertEqual(fill.layer.cornerRadius, 40)
+    }
 }

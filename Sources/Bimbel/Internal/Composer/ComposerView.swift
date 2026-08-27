@@ -34,6 +34,8 @@ final class ComposerView: UIView, UITextViewDelegate {
 
     let plusButton = HitTargetButton(type: .system)
     let pill = UIView()
+    /// Capsule fill behind the Message field. iOS 26 `UIView.backgroundColor` draws a square.
+    let pillFill = ComposerCapsuleFill()
     let textView = ComposerTextView()
     let stickerButton = HitTargetButton(type: .system)
     let cameraButton = HitTargetButton(type: .system)
@@ -96,7 +98,9 @@ final class ComposerView: UIView, UITextViewDelegate {
         micHold.allowableMovement = 24
         actionButton.addGestureRecognizer(micHold)
 
-        pill.layer.masksToBounds = true
+        pill.backgroundColor = .clear
+        pill.layer.borderWidth = 0
+        pill.isExclusiveTouch = false
         textView.delegate = self
         textView.backgroundColor = .clear
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 4)
@@ -107,7 +111,6 @@ final class ComposerView: UIView, UITextViewDelegate {
         plusButton.isExclusiveTouch = false
         cameraButton.isExclusiveTouch = false
         actionButton.isExclusiveTouch = false
-        pill.isExclusiveTouch = false
 
         placeholderLabel.text = "Message"
         placeholderLabel.isUserInteractionEnabled = false
@@ -122,11 +125,17 @@ final class ComposerView: UIView, UITextViewDelegate {
         stickerButton.widthAnchor.constraint(equalToConstant: 40).isActive = true
         stickerButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
 
+        pillFill.translatesAutoresizingMaskIntoConstraints = false
+        pill.addSubview(pillFill)
         pill.addSubview(pillRow)
         pill.addSubview(placeholderLabel)
         pillRow.translatesAutoresizingMaskIntoConstraints = false
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
+            pillFill.topAnchor.constraint(equalTo: pill.topAnchor),
+            pillFill.leadingAnchor.constraint(equalTo: pill.leadingAnchor),
+            pillFill.trailingAnchor.constraint(equalTo: pill.trailingAnchor),
+            pillFill.bottomAnchor.constraint(equalTo: pill.bottomAnchor),
             pillRow.topAnchor.constraint(equalTo: pill.topAnchor),
             pillRow.leadingAnchor.constraint(equalTo: pill.leadingAnchor),
             pillRow.trailingAnchor.constraint(equalTo: pill.trailingAnchor, constant: -4),
@@ -255,7 +264,8 @@ final class ComposerView: UIView, UITextViewDelegate {
         actionButton.backgroundColor = .clear
         actionButton.layer.cornerRadius = 0
         actionButton.layer.masksToBounds = false
-        pill.layer.cornerRadius = min(theme.radii.composerPill, pill.bounds.height / 2)
+        pill.backgroundColor = .clear
+        pill.layer.borderWidth = 0
         delegate?.composerDidChangeHeight(self)
     }
 
@@ -270,9 +280,10 @@ final class ComposerView: UIView, UITextViewDelegate {
         cameraButton.tintColor = theme.colors.composerIcon
         stickerButton.backgroundColor = .clear
         stickerButton.tintColor = theme.colors.composerIcon
-        pill.backgroundColor = theme.colors.composerFill
+        pill.backgroundColor = .clear
         pill.layer.borderWidth = 0
         pill.layer.borderColor = UIColor.clear.cgColor
+        pillFill.backgroundColor = theme.colors.composerFill
         textView.textColor = theme.colors.incomingPrimaryText
         textView.font = theme.fonts.body
         textView.tintColor = theme.colors.accent
@@ -383,6 +394,32 @@ final class ComposerView: UIView, UITextViewDelegate {
 }
 
 final class ComposerTextView: UITextView {}
+
+/// Capsule fill for the Message field. Not the pill `backgroundColor` — iOS 26
+/// draws that as a rectangle, and `min(composerPill, height/2)` was 0 while height was 0.
+final class ComposerCapsuleFill: UIView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        accessibilityIdentifier = "composer.pill.fill"
+        applyCapsule()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        applyCapsule()
+    }
+
+    func applyCapsule() {
+        // Never 0. Height 0 happens on the first layout pass; 20 is half of the 40 pt pill.
+        let radius = bounds.height > 1 ? bounds.height / 2 : 20
+        layer.cornerRadius = radius
+        layer.cornerCurve = .continuous
+        layer.masksToBounds = true
+    }
+}
 
 /// 40 pt accent Kreis for mic/send. Not a `UIButton` background — iOS 26 fills that as a square.
 final class ComposerAccentCircle: UIView {
