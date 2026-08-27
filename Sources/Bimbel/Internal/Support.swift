@@ -70,6 +70,12 @@ enum BimbelFormatters {
         return formatter
     }()
 
+    static func dateChipText(_ date: Date, calendar: Calendar = .current) -> String {
+        if calendar.isDateInToday(date) { return String(localized: "Today") }
+        if calendar.isDateInYesterday(date) { return String(localized: "Yesterday") }
+        return dateChip.string(from: date)
+    }
+
     static func badgeText(_ value: Int?) -> String? {
         guard let value, value > 0 else { return nil }
         return value > 99 ? "99+" : "\(value)"
@@ -157,6 +163,64 @@ final class HitTargetButton: UIButton {
         let extraW = max(0, (minimumHitSize.width - bounds.width) / 2)
         let extraH = max(0, (minimumHitSize.height - bounds.height) / 2)
         return bounds.insetBy(dx: -extraW, dy: -extraH).contains(point)
+    }
+}
+
+enum DeliveryTicks {
+    static func image(for state: DeliveryState) -> UIImage? {
+        switch state {
+        case .sending:
+            return UIImage(systemName: "clock")
+        case .sent:
+            return BundleImage.template("ticks-sent")
+        case .delivered, .read:
+            return BundleImage.template("ticks-delivered")
+        case .failed:
+            return UIImage(systemName: "exclamationmark.circle.fill")
+        }
+    }
+}
+
+enum BundleImage {
+    static func template(_ name: String) -> UIImage? {
+        pdf(name)?.withRenderingMode(.alwaysTemplate)
+    }
+
+    static func pdf(_ name: String) -> UIImage? {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "pdf"),
+              let document = CGPDFDocument(url as CFURL),
+              let page = document.page(at: 1)
+        else { return nil }
+        let rect = page.getBoxRect(.mediaBox)
+        let renderer = UIGraphicsImageRenderer(size: rect.size)
+        return renderer.image { ctx in
+            ctx.cgContext.translateBy(x: 0, y: rect.height)
+            ctx.cgContext.scaleBy(x: 1, y: -1)
+            ctx.cgContext.drawPDFPage(page)
+        }
+    }
+}
+
+enum DoodleWallpaper {
+    static func color(base: UIColor) -> UIColor {
+        UIColor { traits in
+            let resolved = base.resolvedColor(with: traits)
+            let dark = traits.userInterfaceStyle == .dark
+            return UIColor(patternImage: tile(base: resolved, dark: dark))
+        }
+    }
+
+    private static func tile(base: UIColor, dark: Bool) -> UIImage {
+        let size = CGSize(width: 240, height: 240)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            base.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            guard let doodle = BundleImage.pdf("wallpaper") else { return }
+            let tint = (dark ? UIColor.white : UIColor.black).withAlphaComponent(dark ? 0.07 : 0.06)
+            doodle.withTintColor(tint, renderingMode: .alwaysOriginal)
+                .draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 }
 

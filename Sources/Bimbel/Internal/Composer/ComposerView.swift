@@ -14,6 +14,8 @@ protocol ComposerViewDelegate: AnyObject {
     func composerDidEndMicHold(_ composer: ComposerView, translation: CGPoint)
     func composerDidCancelReply(_ composer: ComposerView)
     func composerDidChangeHeight(_ composer: ComposerView)
+    func composerWillBeginEditing(_ composer: ComposerView)
+    func composerDidEndEditing(_ composer: ComposerView)
 }
 
 /// Zustand B: floating plus, pill, camera, and mic/send. Not a full-width bar.
@@ -37,6 +39,7 @@ final class ComposerView: UIView, UITextViewDelegate {
     private var textHeightConstraint: NSLayoutConstraint?
     private var suppressPlusTap = false
     private var micHoldOrigin: CGPoint = .zero
+    var isDismissPassthroughEnabled = true
 
     var text: String {
         get { textView.text ?? "" }
@@ -65,16 +68,16 @@ final class ComposerView: UIView, UITextViewDelegate {
         stickerButton.addTarget(self, action: #selector(tapSticker), for: .touchUpInside)
         stickerButton.accessibilityLabel = "Stickers"
 
-        cameraButton.setImage(UIImage(systemName: "camera.fill"), for: .normal)
+        cameraButton.setImage(UIImage(systemName: "camera", withConfiguration: .bimbelComposerLine), for: .normal)
         cameraButton.addTarget(self, action: #selector(tapCamera), for: .touchUpInside)
         cameraButton.accessibilityLabel = "Camera"
 
         actionButton.addTarget(self, action: #selector(tapAction), for: .touchUpInside)
         let micHold = UILongPressGestureRecognizer(target: self, action: #selector(holdAction(_:)))
         micHold.minimumPressDuration = 0.12
-        // Slide-to-cancel and slide-to-lock move far beyond the default allowance;
-        // without this the recognizer cancels as soon as the finger leaves the button.
-        micHold.allowableMovement = .greatestFiniteMagnitude
+        // Small allowance so a vertical dismiss pan on the mic does not start a hold.
+        // After `.began`, UIKit no longer applies this limit, so slide-to-cancel still works.
+        micHold.allowableMovement = 24
         actionButton.addGestureRecognizer(micHold)
 
         pill.layer.masksToBounds = true
@@ -83,8 +86,12 @@ final class ComposerView: UIView, UITextViewDelegate {
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 4)
         textView.textContainer.lineFragmentPadding = 0
         textView.isScrollEnabled = false
-        textView.keyboardDismissMode = .interactive
+        textView.keyboardDismissMode = .none
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        plusButton.isExclusiveTouch = false
+        cameraButton.isExclusiveTouch = false
+        actionButton.isExclusiveTouch = false
+        pill.isExclusiveTouch = false
 
         placeholderLabel.text = "Message"
         placeholderLabel.isUserInteractionEnabled = false
@@ -149,7 +156,32 @@ final class ComposerView: UIView, UITextViewDelegate {
         ])
 
         apply(theme: theme, sendable: false, sheetPresented: false)
+        installChromeDismissPassthrough()
     }
+
+    /// Vertical pans on Plus / pill chrome / mic start UIKit's accessory dismiss.
+    /// Text selection and an in-progress voice hold are excluded.
+    private func installChromeDismissPassthrough() {
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleChromeDismissPan(_:)))
+        pan.cancelsTouchesInView = false
+        pan.delegate = self
+        addGestureRecognizer(pan)
+        plusButton.addGestureRecognizer(passthroughPan())
+        cameraButton.addGestureRecognizer(passthroughPan())
+        actionButton.addGestureRecognizer(passthroughPan())
+        pill.addGestureRecognizer(passthroughPan())
+    }
+
+    private func passthroughPan() -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleChromeDismissPan(_:)))
+        pan.cancelsTouchesInView = false
+        pan.delegate = self
+        return pan
+    }
+
+    /// Intentionally empty: UIKit's `.interactiveWithAccessory` owns the keyboard.
+    /// The recognizer exists so chrome pans are not eaten by UIButton tracking.
+    @objc private func handleChromeDismissPan(_ pan: UIPanGestureRecognizer) {}
 
     override var intrinsicContentSize: CGSize {
         let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
@@ -165,7 +197,8 @@ final class ComposerView: UIView, UITextViewDelegate {
     override func layoutSubviews() {
         super.layoutSubviews()
         plusButton.layer.cornerRadius = plusButton.bounds.height / 2
-        cameraButton.layer.cornerRadius = cameraButton.bounds.height / 2
+        // Camera and plus are glyphs only — no plate. Mic keeps the accent fill.
+        cameraButton.layer.cornerRadius = 0
         actionButton.layer.cornerRadius = actionButton.bounds.height / 2
         pill.layer.cornerRadius = min(theme.radii.composerPill, pill.bounds.height / 2)
         delegate?.composerDidChangeHeight(self)
@@ -176,13 +209,13 @@ final class ComposerView: UIView, UITextViewDelegate {
         hasSendableContent = sendable
         isSheetPresented = sheetPresented
 
-        plusButton.backgroundColor = theme.colors.plusFill
+        plusButton.backgroundColor = .clear
         plusButton.tintColor = theme.colors.composerIcon
-        cameraButton.backgroundColor = theme.colors.plusFill
+        cameraButton.backgroundColor = .clear
         cameraButton.tintColor = theme.colors.composerIcon
         pill.backgroundColor = theme.colors.composerFill
-        pill.layer.borderWidth = 0.5
-        pill.layer.borderColor = theme.colors.composerStroke.cgColor
+        pill.layer.borderWidth = 0
+        pill.layer.borderColor = UIColor.clear.cgColor
         textView.textColor = theme.colors.incomingPrimaryText
         textView.font = theme.fonts.body
         textView.tintColor = theme.colors.accent
@@ -191,7 +224,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         stickerButton.tintColor = theme.colors.composerIcon
 
         let plusName = sheetPresented ? "keyboard" : "plus"
-        plusButton.setImage(UIImage(systemName: plusName), for: .normal)
+        plusButton.setImage(UIImage(systemName: plusName, withConfiguration: .bimbelComposerLine), for: .normal)
         plusButton.accessibilityLabel = sheetPresented ? "Show keyboard" : "Attach"
         plusButton.accessibilityHint = sheetPresented ? nil : "Long press to open the photo library"
 
@@ -223,6 +256,15 @@ final class ComposerView: UIView, UITextViewDelegate {
             updates()
         }
         hasSendableContent = sendable
+    }
+
+    func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
+        delegate?.composerWillBeginEditing(self)
+        return true
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        delegate?.composerDidEndEditing(self)
     }
 
     func textViewDidChange(_ textView: UITextView) {
@@ -284,18 +326,80 @@ final class ComposerView: UIView, UITextViewDelegate {
 }
 
 final class ComposerTextView: UITextView {
-    /// Zero-height accessory so UIKit treats this field as keyboard-session owner
-    /// without drawing IBAV chrome. KeyboardManager still owns vertical position.
-    private let dummyAccessory = UIView(frame: .zero)
+    /// The VC's accessory **container**, never `ComposerView`. Returning the composer
+    /// while this text view lives inside it is recursive and drops the session.
+    weak var accessoryContainer: UIView?
 
     override var inputAccessoryView: UIView? {
-        get {
-            dummyAccessory.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 0)
-            dummyAccessory.isUserInteractionEnabled = false
-            dummyAccessory.backgroundColor = .clear
-            return dummyAccessory
-        }
+        get { accessoryContainer }
         set {}
+    }
+}
+
+/// Clear host for Zustand B while the keyboard is up. Hangs off the conversation VC,
+/// not off the text view. `allowsSelfSizing` grows with the pill / reply banner.
+final class ComposerAccessoryContainer: UIInputView {
+    private(set) weak var composer: ComposerView?
+
+    init() {
+        super.init(
+            frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 58),
+            inputViewStyle: .default
+        )
+        allowsSelfSizing = true
+        backgroundColor = .clear
+        isOpaque = false
+        autoresizingMask = [.flexibleHeight, .flexibleWidth]
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func embed(_ composer: ComposerView) {
+        self.composer = composer
+        guard composer.superview !== self else {
+            invalidateIntrinsicContentSize()
+            return
+        }
+        composer.removeFromSuperview()
+        addSubview(composer)
+        composer.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            composer.topAnchor.constraint(equalTo: topAnchor),
+            composer.leadingAnchor.constraint(equalTo: leadingAnchor),
+            composer.trailingAnchor.constraint(equalTo: trailingAnchor),
+            composer.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+        invalidateIntrinsicContentSize()
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let height = composer?.intrinsicContentSize.height ?? 58
+        return CGSize(width: UIView.noIntrinsicMetric, height: max(58, height))
+    }
+}
+
+extension ComposerView: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer is UIPanGestureRecognizer else { return true }
+        guard isDismissPassthroughEnabled else { return false }
+        if let view = touch.view, view === textView || view.isDescendant(of: textView) {
+            return false
+        }
+        return true
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        guard isDismissPassthroughEnabled else { return false }
+        let velocity = pan.velocity(in: self)
+        return abs(velocity.y) > abs(velocity.x)
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }
 
@@ -366,4 +470,8 @@ final class ReplyQuoteView: UIView {
     }
 
     @objc private func close() { onClose?() }
+}
+
+extension UIImage.SymbolConfiguration {
+    static let bimbelComposerLine = UIImage.SymbolConfiguration(pointSize: 22, weight: .light)
 }

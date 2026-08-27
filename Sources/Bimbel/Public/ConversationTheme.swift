@@ -309,7 +309,7 @@ public struct ConversationTheme: Sendable {
         public init(
             bubble: CGFloat = 22,
             bubbleJoin: CGFloat = 4,
-            residualTail: CGFloat = 10,
+            residualTail: CGFloat = 3,
             media: CGFloat = 22,
             composerPill: CGFloat = 24,
             composerControl: CGFloat = 22,

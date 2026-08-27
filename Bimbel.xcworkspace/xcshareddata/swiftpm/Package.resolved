@@ -9,15 +9,6 @@
         "revision" : "cf01193e9d20d448d0005f563063924c667e4496",
         "version" : "2.4.3"
       }
-    },
-    {
-      "identity" : "inputbaraccessoryview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/nathantannar4/InputBarAccessoryView.git",
-      "state" : {
-        "revision" : "a8948bd29c7f9acf7f8b19a813f78510736b0c99",
-        "version" : "7.0.6"
-      }
     }
   ],
   "version" : 3

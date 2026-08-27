@@ -11,19 +11,18 @@ let package = Package(
         .library(name: "Bimbel", targets: ["Bimbel"])
     ],
     dependencies: [
-        .package(url: "https://github.com/ekazaev/ChatLayout.git", from: "2.4.0"),
-        .package(url: "https://github.com/nathantannar4/InputBarAccessoryView.git", from: "7.0.0")
+        .package(url: "https://github.com/ekazaev/ChatLayout.git", from: "2.4.0")
     ],
     targets: [
         .target(
             name: "Bimbel",
             dependencies: [
-                .product(name: "ChatLayout", package: "ChatLayout"),
-                .product(name: "InputBarAccessoryView", package: "InputBarAccessoryView")
+                .product(name: "ChatLayout", package: "ChatLayout")
             ],
             path: "Sources/Bimbel",
             resources: [
-                .process("PrivacyInfo.xcprivacy")
+                .process("PrivacyInfo.xcprivacy"),
+                .process("Resources")
             ]
         ),
         .testTarget(

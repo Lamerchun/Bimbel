@@ -39,7 +39,7 @@ conversation.apply(snapshot, animatingDifferences: true)
 
 ## Keyboard (do not “binary hide”)
 
-See README → Keyboard. Owner is the composer + IBAV `KeyboardManager`. Interactive dismiss on the collection view must drag the keyboard **and** the composer together.
+See README → Keyboard. The conversation VC’s `inputAccessoryView` hosts the Zustand B composer while the keyboard is up so drag-to-dismiss starts at the input (`keyboardDismissMode = .interactiveWithAccessory`). Dock the same instance in the VC when the keyboard is hidden. List insets have one owner (keyboard frame / `keyboardLayoutGuide`); do not add keyboard height + composer height, and do not use IBAV `KeyboardManager`.
 
 ## Themes
 

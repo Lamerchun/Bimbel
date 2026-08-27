@@ -51,7 +51,7 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, false])
     }
 
-    func testIncomingAvatarOnlyAtGroupSequenceEnd() {
+    func testIncomingAvatarAtGroupClusterStart() {
         let a = message("1", outgoing: false, kind: .text("hi", preview: nil), senderID: "ada")
         let b = message("2", outgoing: false, kind: .text("there", preview: nil), senderID: "ada")
         let c = message("3", outgoing: false, kind: .text("hey", preview: nil), senderID: "mira")
@@ -62,7 +62,20 @@ final class MessageGroupingTests: XCTestCase {
             if case .message(_, let decoration) = row { return decoration }
             return nil
         }
-        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, true, true])
+        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [true, false, true])
+        XCTAssertEqual(decorations.map(\.reservesIncomingAvatarGutter), [true, true, true])
+    }
+
+    func testOneToOneDoesNotReserveAvatarGutter() {
+        let a = message("1", outgoing: false, kind: .text("hi", preview: nil))
+        let rows = MessageGrouping.rows(
+            from: ConversationSnapshot(conversationID: "c", messages: [a])
+        )
+        let decorations = rows.compactMap { row -> MessageDecoration? in
+            if case .message(_, let decoration) = row { return decoration }
+            return nil
+        }
+        XCTAssertEqual(decorations.map(\.reservesIncomingAvatarGutter), [false])
     }
 
     func testSystemRowsAreNotClustered() {
@@ -77,6 +90,12 @@ final class MessageGroupingTests: XCTestCase {
     func testGroupingSpacingTokens() {
         XCTAssertEqual(ConversationTheme.default.layout.clusterGap, 3)
         XCTAssertEqual(ConversationTheme.default.layout.sequenceGap, 10)
+        XCTAssertEqual(ConversationTheme.default.radii.residualTail, 3)
+        XCTAssertEqual(ConversationTheme.default.radii.bubble, 22)
+    }
+
+    func testDateChipSaysToday() {
+        XCTAssertEqual(BimbelFormatters.dateChipText(Date()), "Today")
     }
 
     func testBadgeFormatter() {

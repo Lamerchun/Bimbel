@@ -44,7 +44,7 @@ struct BubbleCorners: Equatable {
 }
 
 final class BubbleBackgroundView: UIView {
-    var corners = BubbleCorners(topLeft: 22, topRight: 22, bottomLeft: 22, bottomRight: 10) {
+        var corners = BubbleCorners(topLeft: 22, topRight: 22, bottomLeft: 22, bottomRight: 3) {
         didSet {
             setNeedsDisplay()
             setNeedsLayout()
@@ -113,7 +113,7 @@ final class MetadataOverlay: UIView {
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            accessoryView.widthAnchor.constraint(equalToConstant: 14),
+            accessoryView.widthAnchor.constraint(equalToConstant: 18),
             accessoryView.heightAnchor.constraint(equalToConstant: 12)
         ])
     }
@@ -163,19 +163,9 @@ final class MetadataOverlay: UIView {
         case .hidden:
             accessoryView.image = nil
         case .dot:
-            accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: false))
+            accessoryView.image = UIImage(systemName: "circle.fill")
         case .ticks:
-            accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: true))
-        }
-    }
-
-    private func symbol(for state: DeliveryState, ticks: Bool) -> String {
-        switch state {
-        case .sending: return "clock"
-        case .sent: return ticks ? "checkmark" : "circle.fill"
-        case .delivered: return ticks ? "checkmark.circle" : "circle.fill"
-        case .read: return ticks ? "checkmark.circle.fill" : "circle.fill"
-        case .failed: return "exclamationmark.circle.fill"
+            accessoryView.image = DeliveryTicks.image(for: message.delivery)
         }
     }
 }

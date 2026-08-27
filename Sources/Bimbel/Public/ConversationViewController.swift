@@ -25,6 +25,7 @@ open class ConversationViewController: UIViewController {
     private var diffable: UICollectionViewDiffableDataSource<ChatSection, ChatRow>!
     private let headerView = ConversationHeaderView()
     private let composer = ComposerView()
+    private let accessoryContainer = ComposerAccessoryContainer()
     private let keyboardTracker = ComposerKeyboardTracker()
     private let attachmentSheet = AttachmentSheetView()
     private let voice = VoiceRecordingController()
@@ -36,6 +37,10 @@ open class ConversationViewController: UIViewController {
     private var replyTarget: Message?
     private var staged: [StagedAttachment] = []
     private var didBindKeyboard = false
+    private var isComposerInAccessory = false
+    private var dockConstraints: [NSLayoutConstraint] = []
+    private var fabAboveComposer: NSLayoutConstraint?
+    private var fabAboveKeyboard: NSLayoutConstraint?
     private var isLoadingOlder = false
     private var isNearBottom = true
     private let reactionPalette = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
@@ -59,6 +64,12 @@ open class ConversationViewController: UIViewController {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    public override var canBecomeFirstResponder: Bool { true }
+
+    public override var inputAccessoryView: UIView? {
+        isComposerInAccessory ? accessoryContainer : nil
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
         NavigationChrome.hideSystemBar(in: self, animated: false)
@@ -77,6 +88,12 @@ open class ConversationViewController: UIViewController {
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         NavigationChrome.hideSystemBar(in: self, animated: animated)
+    }
+
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        composer.textView.resignFirstResponder()
+        dockComposerInHost()
     }
 
     public override func viewDidAppear(_ animated: Bool) {
@@ -112,7 +129,7 @@ open class ConversationViewController: UIViewController {
     // MARK: - Hierarchy
 
     private func configureHierarchy() {
-        wallpaper.backgroundColor = theme.colors.wallpaper
+        wallpaper.backgroundColor = DoodleWallpaper.color(base: theme.colors.wallpaper)
         view.addSubview(wallpaper)
         wallpaper.bimbelPinToEdges(of: view)
 
@@ -131,7 +148,7 @@ open class ConversationViewController: UIViewController {
         collectionView.backgroundColor = .clear
         collectionView.isOpaque = false
         collectionView.alwaysBounceVertical = true
-        collectionView.keyboardDismissMode = .interactive
+        collectionView.keyboardDismissMode = .interactiveWithAccessory
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.delegate = self
         view.addSubview(collectionView)
@@ -149,6 +166,14 @@ open class ConversationViewController: UIViewController {
         ])
 
         view.addSubview(composer)
+        composer.translatesAutoresizingMaskIntoConstraints = false
+        dockConstraints = [
+            composer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            composer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            composer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ]
+        NSLayoutConstraint.activate(dockConstraints)
+
         view.addSubview(voiceOverlay)
         voiceOverlay.bimbelPinToEdges(of: view)
 
@@ -160,11 +185,16 @@ open class ConversationViewController: UIViewController {
         fab.isHidden = true
         view.addSubview(fab)
         fab.translatesAutoresizingMaskIntoConstraints = false
+        fabAboveComposer = fab.bottomAnchor.constraint(equalTo: composer.topAnchor, constant: -10)
+        fabAboveKeyboard = fab.bottomAnchor.constraint(
+            equalTo: view.keyboardLayoutGuide.topAnchor,
+            constant: -10
+        )
         NSLayoutConstraint.activate([
             fab.widthAnchor.constraint(equalToConstant: 44),
             fab.heightAnchor.constraint(equalToConstant: 44),
             fab.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
-            fab.bottomAnchor.constraint(equalTo: composer.topAnchor, constant: -10)
+            fabAboveComposer!
         ])
     }
 
@@ -219,19 +249,63 @@ open class ConversationViewController: UIViewController {
         attachmentSheet.onAction = { [weak self] in self?.handleAttachment($0) }
         attachmentSheet.onPickAsset = { [weak self] in self?.stageAsset($0) }
         composer.textView.inputView = nil
+        composer.textView.accessoryContainer = nil
     }
 
     private func bindKeyboardIfNeeded() {
         guard !didBindKeyboard else { return }
         didBindKeyboard = true
-        keyboardTracker.additionalBottomConstant = { [weak self] in
-            guard let self else { return 0 }
-            return -self.view.safeAreaInsets.bottom
-        }
         keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
         composer.setContentHuggingPriority(.required, for: .vertical)
         composer.setContentCompressionResistancePriority(.required, for: .vertical)
-        keyboardTracker.attach(composer: composer, collectionView: collectionView)
+        keyboardTracker.attach(host: view, composer: composer, collectionView: collectionView)
+        dockComposerInHost()
+    }
+
+    private func moveComposerToAccessory() {
+        guard !isComposerInAccessory else {
+            accessoryContainer.invalidateIntrinsicContentSize()
+            return
+        }
+        NSLayoutConstraint.deactivate(dockConstraints)
+        fabAboveComposer?.isActive = false
+        fabAboveKeyboard?.isActive = true
+        accessoryContainer.embed(composer)
+        composer.textView.accessoryContainer = accessoryContainer
+        isComposerInAccessory = true
+        keyboardTracker.isComposerInAccessory = true
+        if composer.textView.isFirstResponder {
+            composer.textView.reloadInputViews()
+        }
+        keyboardTracker.syncListInsets(flushingLayout: true)
+    }
+
+    private func dockComposerInHost() {
+        guard composer.superview !== view else {
+            keyboardTracker.isComposerInAccessory = false
+            isComposerInAccessory = false
+            composer.textView.accessoryContainer = nil
+            return
+        }
+        composer.removeFromSuperview()
+        view.insertSubview(composer, belowSubview: voiceOverlay)
+        composer.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate(dockConstraints)
+        fabAboveKeyboard?.isActive = false
+        fabAboveComposer?.isActive = true
+        composer.textView.accessoryContainer = nil
+        isComposerInAccessory = false
+        keyboardTracker.isComposerInAccessory = false
+        if isFirstResponder {
+            reloadInputViews()
+        }
+        keyboardTracker.syncListInsets(flushingLayout: true)
+    }
+
+    private func updateDismissPanEnabled() {
+        let locked = voice.state != .idle || isSheetPresented
+        keyboardTracker.dismissPanEnabled = !locked
+        composer.isDismissPassthroughEnabled = !locked
     }
 
     private func configureVoice() {
@@ -245,6 +319,7 @@ open class ConversationViewController: UIViewController {
             case .recording: self.voiceOverlay.showRecording()
             case .locked, .paused: self.voiceOverlay.showLocked()
             }
+            self.updateDismissPanEnabled()
         }
         voiceOverlay.onCancel = { [weak self] in self?.voice.cancel() }
         voiceOverlay.onLock = { [weak self] in self?.voice.lock() }
@@ -255,7 +330,7 @@ open class ConversationViewController: UIViewController {
     }
 
     private func applyChrome() {
-        wallpaper.backgroundColor = theme.colors.wallpaper
+        wallpaper.backgroundColor = DoodleWallpaper.color(base: theme.colors.wallpaper)
         view.backgroundColor = theme.colors.wallpaper
         headerView.apply(content: header, theme: theme)
         composer.apply(
@@ -352,6 +427,7 @@ open class ConversationViewController: UIViewController {
             composer.textView.becomeFirstResponder()
         }
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: true, reply: replyTarget)
+        updateDismissPanEnabled()
     }
 
     private func showKeyboardFromSheet() {
@@ -359,6 +435,7 @@ open class ConversationViewController: UIViewController {
         composer.textView.reloadInputViews()
         composer.textView.becomeFirstResponder()
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: false, reply: replyTarget)
+        updateDismissPanEnabled()
     }
 
     private func sendVoice() {
@@ -614,7 +691,17 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidChangeHeight(_ composer: ComposerView) {
-        keyboardTracker.syncListInsets(flushingLayout: true)
+        accessoryContainer.invalidateIntrinsicContentSize()
+        keyboardTracker.syncListInsets()
+    }
+
+    func composerWillBeginEditing(_ composer: ComposerView) {
+        moveComposerToAccessory()
+    }
+
+    func composerDidEndEditing(_ composer: ComposerView) {
+        guard !composer.textView.isFirstResponder else { return }
+        dockComposerInHost()
     }
 }
 

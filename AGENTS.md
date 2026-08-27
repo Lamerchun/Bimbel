@@ -43,9 +43,10 @@ inbox.apply(store.snapshot(), animatingDifferences: false)
 - `MessageKind` has no `linkPreview` case — put previews on `.text(_, preview:)`.
 - Thread list basis is UIKit `UICollectionView` + ChatLayout. Do not replace it with SwiftUI `List`/`ScrollView`.
 - Inbox is a `UITableView` (swipe pin/mute/delete). Same theme tokens. No second look.
-- Do not use InputBarAccessoryView’s bar chrome. Zustand B composer is ours.
-- Do not give ChatLayout `additionalSafeAreaInsets` for the keyboard. The composer owns insets.
+- Do not use InputBarAccessoryView. Zustand B composer is ours.
+- Keyboard dismiss starts at the composer: VC `inputAccessoryView` hosts the same composer instance while the keyboard is up; dock it in the VC when the keyboard is hidden. `keyboardDismissMode = .interactiveWithAccessory`.
+- Do not give ChatLayout `additionalSafeAreaInsets` for the keyboard. One inset owner: keyboard frame / layout guide (accessory already included).
+- Attach sheet: Plus becomes the keyboard button; composer stays in the accessory above the sheet. Voice-lock and the sheet disable the dismiss pan.
 - Media stacks are fully rounded like the NEW bubble design, not iMessage collapse.
-- Attach sheet: Plus becomes the keyboard button; composer stays floating above the sheet.
 
 Sample app: `Sample/BimbelSample`. Launches on the inbox. Tap **Ada** for the full thread. Tap the large title (or a conversation title) to switch Default ↔ Blue.

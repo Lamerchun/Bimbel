@@ -91,7 +91,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         overlayMetadata.isHidden = true
 
         hStack.axis = .horizontal
-        hStack.alignment = .bottom
+        hStack.alignment = .top
         hStack.spacing = 6
         hStack.addArrangedSubview(avatarView)
         hStack.addArrangedSubview(bubble)
@@ -151,8 +151,9 @@ final class MessageCollectionCell: UICollectionViewCell {
         reactionsLeading.isActive = !outgoing
         reactionsTrailing.isActive = outgoing
 
-        avatarView.isHidden = outgoing || !decoration.showsIncomingAvatar
-        avatarView.layer.cornerRadius = 14
+        avatarView.isHidden = outgoing || !decoration.reservesIncomingAvatarGutter
+        avatarView.alpha = decoration.showsIncomingAvatar ? 1 : 0
+        avatarView.layer.cornerRadius = theme.layout.incomingAvatarSize / 2
         if let participant {
             avatarView.image = ImageLoader.image(from: participant.avatar)
                 ?? InitialGlyph.make(title: participant.displayName, size: 28, colors: theme.colors)
@@ -289,6 +290,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         overlayMetadata.prepareForReuse()
         overlayMetadata.isHidden = true
         paddedBody.isHidden = false
+        avatarView.alpha = 1
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {

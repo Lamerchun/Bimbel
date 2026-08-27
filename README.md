@@ -63,21 +63,22 @@ Coding-agent notes: [AGENTS.md](AGENTS.md) · [docs/for-coding-agents.md](docs/f
 
 ## Keyboard
 
-The composer owns keyboard insets. ChatLayout is not given `additionalSafeAreaInsets`.
+The conversation VC owns the accessory. ChatLayout is not given `additionalSafeAreaInsets`. InputBarAccessoryView is not used.
 
-1. Zustand B composer is a subview (plus + pill + camera + mic/send), not InputBarAccessoryView chrome.
-2. IBAV `KeyboardManager` pins that subview to the keyboard and tracks interactive-dismiss pans (`bind(to: collectionView)` + `keyboardDismissMode = .interactive`).
-3. Collection `contentInset.bottom` is derived from the composer frame so the last bubble stays above the pill.
-4. A zero-height dummy `inputAccessoryView` on the text view keeps the UIKit keyboard session without drawing a bar.
-5. The attach sheet is the text view’s `inputView`, so the same tracker keeps the composer floating above the sheet. Plus becomes the keyboard button while the sheet is up.
+1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar.
+2. Keyboard hidden: the **same** composer instance is docked in the conversation VC at the safe-area bottom (wallpaper shows through).
+3. Keyboard visible: that instance is reparented into the VC’s `inputAccessoryView` (a clear container). The text view lives inside the composer; its `inputAccessoryView` is the **container**, never the composer.
+4. `collectionView.keyboardDismissMode = .interactiveWithAccessory` so drag-to-dismiss starts at the composer, not the keys.
+5. List `contentInset.bottom` has one owner: keyboard frame / `keyboardLayoutGuide` while the composer is in the accessory (do not add keyboard height + composer height). Docked, the inset is composer height + safe area.
+6. Attach sheet is the text view’s `inputView`. Voice-lock and the attach sheet disable the dismiss pan.
 
-`keyboardLayoutGuide` was considered; KeyboardManager already follows the finger for interactive dismiss.
+Do not pin the composer to `keyboardLayoutGuide`. Do not use IBAV `KeyboardManager` as the position owner.
 
 ## Theme & materials
 
 `ConversationTheme.default` nods at mint/teal. `ConversationTheme.blue` is the foreign accent in the sample (tap the inbox title or a conversation title). Delivery accessories are `.ticks`, `.dot`, or `.hidden` — ticks are not hard-coded.
 
-Header glass uses Liquid Glass when `UIGlassEffect` exists at runtime (iOS 26). iOS 17/18 fall back to `.systemUltraThinMaterial`. Wallpaper is a solid/quiet color; the package ships no doodle asset.
+Header glass uses Liquid Glass when `UIGlassEffect` exists at runtime (iOS 26). iOS 17/18 fall back to `.systemUltraThinMaterial`. Wallpaper is a quiet doodle tiled over the theme wash (`Resources/wallpaper.pdf`).
 
 ## Sponsors
 
@@ -102,4 +103,4 @@ Issues und PRs willkommen, solange sie an der Komponente bleiben (Liste + Conver
 
 Siehe [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Layout engine: [ChatLayout](https://github.com/ekazaev/ChatLayout) (MIT). Keyboard helper: [InputBarAccessoryView](https://github.com/nathantannar4/InputBarAccessoryView) `KeyboardManager` only (MIT).
+Layout engine: [ChatLayout](https://github.com/ekazaev/ChatLayout) (MIT).

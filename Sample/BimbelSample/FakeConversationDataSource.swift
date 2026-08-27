@@ -29,7 +29,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
 
     func snapshot(in conversationID: ConversationID) -> ConversationSnapshot {
         let messages = threads[conversationID] ?? []
-        let firstUnread = conversationID == adaID ? messages.first(where: { $0.id == "m-21" })?.id : nil
+        let firstUnread = conversationID == adaID ? messages.first(where: { $0.id == "m-18" })?.id : nil
         return ConversationSnapshot(
             conversationID: conversationID,
             messages: messages,
@@ -82,7 +82,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         let typing = conversationID == adaID ? isTyping : (item?.isTyping ?? false)
         return HeaderContent(
             title: item?.title ?? "Chat",
-            subtitle: "tap name to switch theme",
+            subtitle: String(localized: "online"),
             avatar: item?.avatar,
             unreadBadge: item?.unreadCount,
             showsVideo: true,
@@ -237,7 +237,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "sample-thread",
                 title: "Ada",
-                preview: "Ready for a drop-in.",
+                preview: "See you there.",
                 timestamp: now.addingTimeInterval(-2 * 60),
                 avatar: adaAvatar,
                 unreadCount: 4
@@ -319,37 +319,27 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         func at(_ minutes: TimeInterval) -> Date { now.addingTimeInterval(-minutes * 60) }
         let outgoingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 1)))
         let incomingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.74, green: 0.66, blue: 0.56, alpha: 1)))
-        let preview = LinkPreview(
-            url: URL(string: "https://example.com/bimbel")!,
-            title: "Bimbel conversation component",
-            summary: "Drop-in iOS thread. Surface 1.",
-            siteName: "example.com",
-            thumbnail: outgoingPhoto
-        )
         return [
-            Message(id: "m-01", senderID: them, sentAt: at(1_440), kind: .system("Messages are end-to-end encrypted."), isOutgoing: false),
-            Message(id: "m-02", senderID: them, sentAt: at(1_400), kind: .text("Hey — this is the sample thread.", preview: nil), isOutgoing: false),
-            Message(id: "m-03", senderID: them, sentAt: at(1_399), kind: .text("Scroll for mixed kinds: text, image, link, voice, system.", preview: nil), isOutgoing: false),
-            Message(id: "m-04", senderID: me, sentAt: at(1_200), kind: .text("Sending a photo next.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-05", senderID: me, sentAt: at(1_199), kind: .image(Media(source: outgoingPhoto, width: 800, height: 800)), delivery: .read, isOutgoing: true),
-            Message(id: "m-06", senderID: me, sentAt: at(1_198), kind: .text("Docs live on example.com", preview: preview), delivery: .read, isOutgoing: true),
-            Message(id: "m-07", senderID: me, sentAt: at(1_197), kind: .text("Stacked as one silhouette.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-08", senderID: them, sentAt: at(900), kind: .text("Incoming cluster starts here.", preview: nil), isOutgoing: false),
-            Message(id: "m-09", senderID: them, sentAt: at(899), kind: .text("In 1:1 the avatar lives in the header, not the row.", preview: nil), isOutgoing: false),
-            Message(id: "m-10", senderID: them, sentAt: at(898), kind: .voice(Voice(duration: 6, waveform: [0.2, 0.4, 0.8, 0.5, 0.9, 0.3, 0.6])), isOutgoing: false),
-            Message(id: "m-11", senderID: me, sentAt: at(700), kind: .document(Document(name: "spec.pdf", byteCount: 240_000)), delivery: .delivered, isOutgoing: true),
-            Message(id: "m-12", senderID: them, sentAt: at(500), kind: .system("The message timer was updated. New messages will disappear from this chat after 7 days."), isOutgoing: false),
-            Message(id: "m-13", senderID: me, sentAt: at(120), kind: .text("Hold the mic to record. Slide left to cancel, up to lock.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-14", senderID: them, sentAt: at(90), kind: .text("Swipe a bubble right to reply. Long-press for reactions.", preview: nil), isOutgoing: false),
-            Message(id: "m-15", senderID: them, sentAt: at(89), kind: .image(Media(source: incomingPhoto, width: 640, height: 640, caption: "Logo")), isOutgoing: false),
-            Message(id: "m-16", senderID: me, sentAt: at(60), kind: .text("Back returns to the inbox. Tap a title to switch theme.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-17", senderID: them, sentAt: at(45), kind: .text("Default theme is mint. Tap the title for the blue accent.", preview: nil), isOutgoing: false),
-            Message(id: "m-18", senderID: me, sentAt: at(30), kind: .text("Composer is Zustand B — floating plus, pill, camera, mic.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-19", senderID: me, sentAt: at(20), kind: .voice(Voice(duration: 3, waveform: [0.3, 0.7, 0.4, 0.9, 0.5])), delivery: .read, isOutgoing: true),
-            Message(id: "m-20", senderID: them, sentAt: at(12), kind: .text("Plus opens the 2×4 attach sheet. Poll / Event / AI are gated.", preview: nil), isOutgoing: false),
-            Message(id: "m-21", senderID: them, sentAt: at(8), kind: .text("Unread separator sits on this line.", preview: nil), isOutgoing: false),
-            Message(id: "m-22", senderID: me, sentAt: at(4), kind: .text("Drag the list down to dismiss the keyboard with the finger.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-23", senderID: them, sentAt: at(2), kind: .text("Ready for a drop-in.", preview: nil), reactions: [Reaction(emoji: "👍", userIDs: [me])], isOutgoing: false)
+            Message(id: "m-01", senderID: them, sentAt: at(28 * 60), kind: .system("Messages are end-to-end encrypted."), isOutgoing: false),
+            Message(id: "m-02", senderID: them, sentAt: at(26 * 60), kind: .text("You make it home okay?", preview: nil), isOutgoing: false),
+            Message(id: "m-03", senderID: me, sentAt: at(25 * 60 + 40), kind: .text("Just walked in. The rain was ridiculous.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(id: "m-04", senderID: them, sentAt: at(25 * 60 + 10), kind: .text("I told you to take a cab.", preview: nil), isOutgoing: false),
+            Message(id: "m-05", senderID: me, sentAt: at(90), kind: .text("Look what I found on the desk.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(id: "m-06", senderID: me, sentAt: at(89), kind: .image(Media(source: outgoingPhoto, width: 800, height: 800)), delivery: .read, isOutgoing: true),
+            Message(id: "m-07", senderID: them, sentAt: at(70), kind: .text("That's the print from last week?", preview: nil), isOutgoing: false),
+            Message(id: "m-08", senderID: them, sentAt: at(69), kind: .text("Hold on — sending the one I meant.", preview: nil), isOutgoing: false),
+            Message(id: "m-09", senderID: them, sentAt: at(68), kind: .image(Media(source: incomingPhoto, width: 640, height: 640)), isOutgoing: false),
+            Message(id: "m-10", senderID: me, sentAt: at(55), kind: .text("Yes. That's it.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(id: "m-11", senderID: them, sentAt: at(50), kind: .voice(Voice(duration: 6, waveform: [0.2, 0.4, 0.8, 0.5, 0.9, 0.3, 0.6])), isOutgoing: false),
+            Message(id: "m-12", senderID: me, sentAt: at(42), kind: .text("I'll pin it on the board when I get in.", preview: nil), delivery: .delivered, isOutgoing: true),
+            Message(id: "m-13", senderID: them, sentAt: at(36), kind: .system("The message timer was updated. New messages will disappear from this chat after 7 days."), isOutgoing: false),
+            Message(id: "m-14", senderID: them, sentAt: at(28), kind: .text("Lunch still on?", preview: nil), isOutgoing: false),
+            Message(id: "m-15", senderID: me, sentAt: at(24), kind: .text("1:30 works. The usual place.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(id: "m-16", senderID: me, sentAt: at(20), kind: .voice(Voice(duration: 3, waveform: [0.3, 0.7, 0.4, 0.9, 0.5])), delivery: .read, isOutgoing: true),
+            Message(id: "m-17", senderID: them, sentAt: at(14), kind: .text("I'll grab the window table.", preview: nil), isOutgoing: false),
+            Message(id: "m-18", senderID: them, sentAt: at(8), kind: .text("Don't forget the keys this time.", preview: nil), isOutgoing: false),
+            Message(id: "m-19", senderID: me, sentAt: at(4), kind: .text("Already in my pocket.", preview: nil), delivery: .read, isOutgoing: true),
+            Message(id: "m-20", senderID: them, sentAt: at(2), kind: .text("See you there.", preview: nil), reactions: [Reaction(emoji: "👍", userIDs: [me])], isOutgoing: false)
         ]
     }
 

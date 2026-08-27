@@ -14,12 +14,14 @@ struct MessageDecoration: Hashable, Sendable {
     var cluster: ClusterPosition
     var mediaStack: MediaStackPosition
     var showsIncomingAvatar: Bool
+    var reservesIncomingAvatarGutter: Bool
     var incomingName: String?
 
     static let standalone = MessageDecoration(
         cluster: .standalone,
         mediaStack: .none,
         showsIncomingAvatar: false,
+        reservesIncomingAvatarGutter: false,
         incomingName: nil
     )
 }
@@ -97,13 +99,12 @@ enum MessageGrouping {
                 calendar: calendar
             )
 
-            // 1:1: avatar lives in the header, never on a transcript row.
-            // Groups: incoming avatar only at the end of a sequence.
-            let showsIncomingAvatar = isGroup && !message.isOutgoing && cluster.isLastInCluster
+            let showsIncomingAvatar = isGroup && !message.isOutgoing && cluster.isFirstInCluster
             decorated[index].1 = MessageDecoration(
                 cluster: cluster,
                 mediaStack: stack,
                 showsIncomingAvatar: showsIncomingAvatar,
+                reservesIncomingAvatarGutter: isGroup && !message.isOutgoing,
                 incomingName: nil
             )
         }

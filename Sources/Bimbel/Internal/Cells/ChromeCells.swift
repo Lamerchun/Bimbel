@@ -26,7 +26,7 @@ final class DateChipCell: UICollectionViewCell {
         label.backgroundColor = theme.colors.systemChipFill
         label.layer.cornerRadius = theme.radii.chip
         label.insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
-        label.text = BimbelFormatters.dateChip.string(from: date)
+        label.text = BimbelFormatters.dateChipText(date)
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
@@ -38,23 +38,17 @@ final class DateChipCell: UICollectionViewCell {
 
 final class UnreadSeparatorCell: UICollectionViewCell {
     static let reuseID = "UnreadSeparatorCell"
-    private let line = UIView()
     private let label = PaddedLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
-        label.text = "Unread messages"
+        label.text = String(localized: "Unread messages")
         label.textAlignment = .center
-        contentView.addSubview(line)
+        label.layer.masksToBounds = true
         contentView.addSubview(label)
-        line.translatesAutoresizingMaskIntoConstraints = false
         label.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            line.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            line.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            line.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            line.heightAnchor.constraint(equalToConstant: 1),
             label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
         ])
@@ -63,11 +57,11 @@ final class UnreadSeparatorCell: UICollectionViewCell {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(theme: ConversationTheme) {
-        line.backgroundColor = theme.colors.unreadSeparator.withAlphaComponent(0.35)
         label.font = theme.fonts.chip
-        label.textColor = theme.colors.unreadSeparator
-        label.backgroundColor = theme.colors.wallpaper
-        label.insets = UIEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
+        label.textColor = theme.colors.headerSubtitle
+        label.backgroundColor = theme.colors.systemChipFill
+        label.layer.cornerRadius = theme.radii.chip
+        label.insets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
