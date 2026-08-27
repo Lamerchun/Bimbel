@@ -32,6 +32,24 @@ final class SampleHostViewController: UIViewController {
         nav.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         nav.didMove(toParent: self)
         showInbox()
+        if Self.shotName == "ada" {
+            openConversation(store.adaID, animated: false)
+            DispatchQueue.main.async { [weak self] in
+                self?.conversation?.presentKeyboardAfterAccessoryReparent()
+            }
+        }
+    }
+
+    /// `BIMBEL_SHOT=ada` or `-BIMBEL_SHOT ada`. Opens Ada and stands the software keyboard.
+    private static var shotName: String? {
+        let env = ProcessInfo.processInfo.environment["BIMBEL_SHOT"]
+        if let env, !env.isEmpty { return env }
+        let args = ProcessInfo.processInfo.arguments
+        if let index = args.firstIndex(of: "-BIMBEL_SHOT") {
+            let next = args.index(after: index)
+            if next < args.endIndex { return args[next] }
+        }
+        return nil
     }
 
     private func showInbox() {
@@ -46,7 +64,7 @@ final class SampleHostViewController: UIViewController {
         conversation = nil
     }
 
-    private func openConversation(_ id: ConversationID) {
+    private func openConversation(_ id: ConversationID, animated: Bool = true) {
         let controller = ConversationViewController(
             conversationID: id,
             dataSource: store,
@@ -55,7 +73,7 @@ final class SampleHostViewController: UIViewController {
             actions: conversationActions(for: id)
         )
         conversation = controller
-        nav.pushViewController(controller, animated: true)
+        nav.pushViewController(controller, animated: animated)
     }
 
     private func applyTheme() {

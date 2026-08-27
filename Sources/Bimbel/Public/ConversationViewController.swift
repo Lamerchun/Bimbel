@@ -38,6 +38,10 @@ open class ConversationViewController: UIViewController {
     private var staged: [StagedAttachment] = []
     private var didBindKeyboard = false
     private var isComposerInAccessory = false
+    /// True while the composer is leaving the VC for the accessory (or the reverse).
+    /// `textViewDidEndEditing` must not dock during that window — that put the
+    /// same view in two layouts and the keyboard never settled.
+    private var isMovingComposer = false
     private var dockConstraints: [NSLayoutConstraint] = []
     private var fabAboveComposer: NSLayoutConstraint?
     private var fabAboveKeyboard: NSLayoutConstraint?
@@ -67,7 +71,7 @@ open class ConversationViewController: UIViewController {
     public override var canBecomeFirstResponder: Bool { true }
 
     public override var inputAccessoryView: UIView? {
-        isComposerInAccessory ? accessoryContainer : nil
+        composer.superview === accessoryContainer ? accessoryContainer : nil
     }
 
     public override func viewDidLoad() {
@@ -131,6 +135,16 @@ open class ConversationViewController: UIViewController {
             scrollToBottom(animated: animatingDifferences)
         }
         updateFAB()
+    }
+
+    /// Reparent the composer into `inputAccessoryView`, then focus the text view
+    /// so the software keyboard stands. Call this after the conversation has
+    /// appeared. Do not focus first — that docks and accessories at once.
+    public func presentKeyboardAfterAccessoryReparent() {
+        isMovingComposer = true
+        moveComposerToAccessory()
+        composer.textView.becomeFirstResponder()
+        isMovingComposer = false
     }
 
     // MARK: - Hierarchy
@@ -283,47 +297,51 @@ open class ConversationViewController: UIViewController {
     }
 
     private func moveComposerToAccessory() {
-        guard !isComposerInAccessory else {
+        if composer.superview === accessoryContainer {
+            isComposerInAccessory = true
+            keyboardTracker.isComposerInAccessory = true
             accessoryContainer.invalidateIntrinsicContentSize()
             reloadInputViews()
             return
         }
+        let startedMove = !isMovingComposer
+        isMovingComposer = true
+        defer { if startedMove { isMovingComposer = false } }
+
+        // Out of the VC first. Never layout the same composer in two parents.
         NSLayoutConstraint.deactivate(dockConstraints)
         fabAboveComposer?.isActive = false
         fabAboveKeyboard?.isActive = true
+        composer.removeFromSuperview()
         accessoryContainer.embed(composer)
+        // VC owns the accessory. The text view must not return this ancestor.
+        composer.textView.accessoryContainer = nil
         isComposerInAccessory = true
         keyboardTracker.isComposerInAccessory = true
-        // Text view lives inside the accessory. Returning that ancestor as
-        // `inputAccessoryView` is recursive and UIKit drops the bar — the
-        // covering edge then becomes the keys. The VC owns the accessory.
-        composer.textView.accessoryContainer = accessoryContainer
-        if !isFirstResponder {
-            _ = becomeFirstResponder()
-        }
+        accessoryContainer.invalidateIntrinsicContentSize()
+        _ = becomeFirstResponder()
         reloadInputViews()
-        if composer.textView.isFirstResponder {
-            composer.textView.reloadInputViews()
-        }
         keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
     private func dockComposerInHost() {
-        guard composer.superview !== view else {
-            keyboardTracker.isComposerInAccessory = false
-            isComposerInAccessory = false
+        if composer.superview === view, !isComposerInAccessory {
             composer.textView.accessoryContainer = nil
             return
         }
+        let startedMove = !isMovingComposer
+        isMovingComposer = true
+        defer { if startedMove { isMovingComposer = false } }
+
         composer.removeFromSuperview()
+        composer.textView.accessoryContainer = nil
+        isComposerInAccessory = false
+        keyboardTracker.isComposerInAccessory = false
         view.insertSubview(composer, belowSubview: voiceOverlay)
         composer.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate(dockConstraints)
         fabAboveKeyboard?.isActive = false
         fabAboveComposer?.isActive = true
-        composer.textView.accessoryContainer = nil
-        isComposerInAccessory = false
-        keyboardTracker.isComposerInAccessory = false
         if isFirstResponder {
             reloadInputViews()
         }
@@ -750,6 +768,7 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidEndEditing(_ composer: ComposerView) {
+        guard !isMovingComposer else { return }
         guard !composer.textView.isFirstResponder else { return }
         dockComposerInHost()
     }

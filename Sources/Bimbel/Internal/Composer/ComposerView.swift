@@ -332,16 +332,12 @@ final class ComposerView: UIView, UITextViewDelegate {
 }
 
 final class ComposerTextView: UITextView {
-    /// The VC's accessory **container**, never `ComposerView`. Returning the composer
-    /// while this text view lives inside it is recursive and drops the session.
+    /// Unused for the accessory. The conversation VC owns `inputAccessoryView`.
+    /// Returning this text view's ancestor here is recursive and UIKit drops the bar.
     weak var accessoryContainer: UIView?
 
     override var inputAccessoryView: UIView? {
-        get {
-            guard let accessoryContainer else { return nil }
-            if isDescendant(of: accessoryContainer) { return nil }
-            return accessoryContainer
-        }
+        get { nil }
         set {}
     }
 }
@@ -366,7 +362,7 @@ final class ComposerAccessoryContainer: UIInputView {
 
     func embed(_ composer: ComposerView) {
         self.composer = composer
-        guard composer.superview !== self else {
+        if composer.superview === self {
             invalidateIntrinsicContentSize()
             return
         }
