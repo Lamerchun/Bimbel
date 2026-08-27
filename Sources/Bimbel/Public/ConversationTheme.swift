@@ -137,8 +137,8 @@ public struct ConversationTheme: Sendable {
             },
             incomingBubble: UIColor { tc in
                 tc.userInterfaceStyle == .dark
-                    ? UIColor(red: 0.16, green: 0.17, blue: 0.18, alpha: 1)
-                    : UIColor(white: 1, alpha: 1)
+                    ? UIColor(red: 0.18, green: 0.17, blue: 0.16, alpha: 1)
+                    : UIColor(red: 0.98, green: 0.96, blue: 0.93, alpha: 1)
             },
             outgoingPrimaryText: UIColor { tc in
                 tc.userInterfaceStyle == .dark ? .white : UIColor(white: 0.12, alpha: 1)
@@ -227,8 +227,8 @@ public struct ConversationTheme: Sendable {
             },
             incomingBubble: UIColor { tc in
                 tc.userInterfaceStyle == .dark
-                    ? UIColor(red: 0.16, green: 0.18, blue: 0.22, alpha: 1)
-                    : UIColor.white
+                    ? UIColor(red: 0.18, green: 0.18, blue: 0.20, alpha: 1)
+                    : UIColor(red: 0.98, green: 0.97, blue: 0.95, alpha: 1)
             },
             outgoingPrimaryText: UIColor { tc in
                 tc.userInterfaceStyle == .dark ? .white : UIColor(red: 0.07, green: 0.16, blue: 0.32, alpha: 1)

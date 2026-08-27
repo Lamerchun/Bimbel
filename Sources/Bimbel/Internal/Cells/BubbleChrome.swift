@@ -45,19 +45,30 @@ struct BubbleCorners: Equatable {
 
 final class BubbleBackgroundView: UIView {
     var corners = BubbleCorners(topLeft: 22, topRight: 22, bottomLeft: 22, bottomRight: 10) {
-        didSet { setNeedsDisplay() }
+        didSet {
+            setNeedsDisplay()
+            setNeedsLayout()
+        }
     }
     var fillColor: UIColor = .white {
         didSet { setNeedsDisplay() }
     }
 
+    private let shapeMask = CAShapeLayer()
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
         isOpaque = false
+        layer.mask = shapeMask
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        shapeMask.path = path(in: bounds).cgPath
+    }
 
     override func draw(_ rect: CGRect) {
         fillColor.setFill()
@@ -87,6 +98,8 @@ final class MetadataOverlay: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
         timeLabel.font = .systemFont(ofSize: 11, weight: .regular)
         accessoryView.contentMode = .scaleAspectFit
         let stack = UIStackView(arrangedSubviews: [timeLabel, accessoryView])
@@ -107,12 +120,45 @@ final class MetadataOverlay: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(message: Message, theme: ConversationTheme) {
+    func configure(message: Message, theme: ConversationTheme, onMedia: Bool = false) {
         timeLabel.text = BimbelFormatters.messageTime.string(from: message.sentAt)
-        timeLabel.textColor = theme.colors.metadata
         timeLabel.font = theme.fonts.metadata
-        accessoryView.isHidden = !message.isOutgoing || theme.deliveryAccessory == .hidden
-        accessoryView.tintColor = message.delivery == .read ? theme.colors.accent : theme.colors.metadata
+        if onMedia {
+            timeLabel.textColor = .white
+            timeLabel.layer.shadowColor = UIColor.black.cgColor
+            timeLabel.layer.shadowOpacity = 0.45
+            timeLabel.layer.shadowRadius = 2
+            timeLabel.layer.shadowOffset = CGSize(width: 0, height: 1)
+        } else {
+            timeLabel.textColor = theme.colors.metadata
+            timeLabel.layer.shadowOpacity = 0
+        }
+        applyAccessory(message: message, theme: theme, onMedia: onMedia)
+    }
+
+    func prepareForReuse() {
+        accessoryView.isHidden = true
+        accessoryView.image = nil
+        timeLabel.layer.shadowOpacity = 0
+    }
+
+    /// Delivery ticks belong on outgoing bubbles only — including failed.
+    private func applyAccessory(message: Message, theme: ConversationTheme, onMedia: Bool) {
+        guard message.isOutgoing else {
+            accessoryView.isHidden = true
+            accessoryView.image = nil
+            return
+        }
+        if message.delivery == .failed {
+            accessoryView.image = UIImage(systemName: "exclamationmark.circle.fill")
+            accessoryView.tintColor = .systemRed
+            accessoryView.isHidden = false
+            return
+        }
+        accessoryView.isHidden = theme.deliveryAccessory == .hidden
+        accessoryView.tintColor = message.delivery == .read
+            ? theme.colors.accent
+            : (onMedia ? .white : theme.colors.metadata)
         switch theme.deliveryAccessory {
         case .hidden:
             accessoryView.image = nil
@@ -120,11 +166,6 @@ final class MetadataOverlay: UIView {
             accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: false))
         case .ticks:
             accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: true))
-        }
-        if message.delivery == .failed {
-            accessoryView.image = UIImage(systemName: "exclamationmark.circle.fill")
-            accessoryView.tintColor = .systemRed
-            accessoryView.isHidden = false
         }
     }
 
@@ -245,7 +286,7 @@ final class MediaImageView: UIImageView {
         super.init(frame: frame)
         contentMode = .scaleAspectFill
         clipsToBounds = true
-        backgroundColor = UIColor.tertiarySystemFill
+        backgroundColor = .clear
         heightAnchor.constraint(equalTo: widthAnchor, multiplier: 0.85).isActive = true
     }
 

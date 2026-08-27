@@ -67,6 +67,9 @@ enum MessageGrouping {
         guard !messages.isEmpty else { return [] }
 
         var decorated: [(Message, MessageDecoration)] = messages.map { ($0, .standalone) }
+        let isGroup = Set(
+            messages.filter { !$0.isOutgoing && !isSystem($0) }.map(\.senderID)
+        ).count > 1
 
         for index in messages.indices {
             let message = messages[index]
@@ -94,7 +97,9 @@ enum MessageGrouping {
                 calendar: calendar
             )
 
-            let showsIncomingAvatar = !message.isOutgoing && cluster.isLastInCluster
+            // 1:1: avatar lives in the header, never on a transcript row.
+            // Groups: incoming avatar only at the end of a sequence.
+            let showsIncomingAvatar = isGroup && !message.isOutgoing && cluster.isLastInCluster
             decorated[index].1 = MessageDecoration(
                 cluster: cluster,
                 mediaStack: stack,

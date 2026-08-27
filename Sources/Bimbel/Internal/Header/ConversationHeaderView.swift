@@ -28,12 +28,19 @@ final class ConversationHeaderView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func setup() {
+        isOpaque = false
         backgroundColor = .clear
+        layer.shadowOpacity = 0
+        layer.shadowRadius = 0
         // No hairline: never set a bottom border or shadow.
         addSubview(glass)
+        glass.isOpaque = false
+        glass.backgroundColor = .clear
         glass.bimbelPinToEdges(of: self)
 
         content.translatesAutoresizingMaskIntoConstraints = false
+        content.backgroundColor = .clear
+        content.isOpaque = false
         addSubview(content)
 
         backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
@@ -139,6 +146,7 @@ final class ConversationHeaderView: UIView {
 
     func apply(content header: HeaderContent, theme: ConversationTheme) {
         self.theme = theme
+        applyGlass(theme)
         tintColor = theme.colors.headerTitle
         titleLabel.font = theme.fonts.headerTitle
         titleLabel.textColor = theme.colors.headerTitle
@@ -191,6 +199,18 @@ final class ConversationHeaderView: UIView {
         backButton.tintColor = theme.colors.headerTitle
         videoButton.tintColor = theme.colors.headerTitle
         callButton.tintColor = theme.colors.headerTitle
+    }
+
+    private func applyGlass(_ theme: ConversationTheme) {
+        isOpaque = false
+        backgroundColor = .clear
+        glass.isOpaque = false
+        glass.backgroundColor = .clear
+        if theme.materials.usesLiquidGlassWhenAvailable, let effect = MaterialFactory.makeLiquidGlassEffect() {
+            glass.effect = effect
+        } else {
+            glass.effect = UIBlurEffect(style: theme.materials.headerBlurStyle)
+        }
     }
 
     @objc private func tapBack() { onBack?() }

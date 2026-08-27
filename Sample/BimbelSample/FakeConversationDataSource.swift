@@ -317,30 +317,31 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
     private static func seedAda(me: UserID, them: UserID) -> [Message] {
         let now = Date()
         func at(_ minutes: TimeInterval) -> Date { now.addingTimeInterval(-minutes * 60) }
-        let logo = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 1)))
+        let outgoingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 1)))
+        let incomingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.74, green: 0.66, blue: 0.56, alpha: 1)))
         let preview = LinkPreview(
             url: URL(string: "https://example.com/bimbel")!,
             title: "Bimbel conversation component",
             summary: "Drop-in iOS thread. Surface 1.",
             siteName: "example.com",
-            thumbnail: logo
+            thumbnail: outgoingPhoto
         )
         return [
             Message(id: "m-01", senderID: them, sentAt: at(1_440), kind: .system("Messages are end-to-end encrypted."), isOutgoing: false),
             Message(id: "m-02", senderID: them, sentAt: at(1_400), kind: .text("Hey — this is the sample thread.", preview: nil), isOutgoing: false),
             Message(id: "m-03", senderID: them, sentAt: at(1_399), kind: .text("Scroll for mixed kinds: text, image, link, voice, system.", preview: nil), isOutgoing: false),
             Message(id: "m-04", senderID: me, sentAt: at(1_200), kind: .text("Sending a photo next.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-05", senderID: me, sentAt: at(1_199), kind: .image(Media(source: logo, width: 800, height: 800)), delivery: .read, isOutgoing: true),
+            Message(id: "m-05", senderID: me, sentAt: at(1_199), kind: .image(Media(source: outgoingPhoto, width: 800, height: 800)), delivery: .read, isOutgoing: true),
             Message(id: "m-06", senderID: me, sentAt: at(1_198), kind: .text("Docs live on example.com", preview: preview), delivery: .read, isOutgoing: true),
             Message(id: "m-07", senderID: me, sentAt: at(1_197), kind: .text("Stacked as one silhouette.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-08", senderID: them, sentAt: at(900), kind: .text("Incoming cluster starts here.", preview: nil), isOutgoing: false),
-            Message(id: "m-09", senderID: them, sentAt: at(899), kind: .text("Avatar only on the last bubble.", preview: nil), isOutgoing: false),
+            Message(id: "m-09", senderID: them, sentAt: at(899), kind: .text("In 1:1 the avatar lives in the header, not the row.", preview: nil), isOutgoing: false),
             Message(id: "m-10", senderID: them, sentAt: at(898), kind: .voice(Voice(duration: 6, waveform: [0.2, 0.4, 0.8, 0.5, 0.9, 0.3, 0.6])), isOutgoing: false),
             Message(id: "m-11", senderID: me, sentAt: at(700), kind: .document(Document(name: "spec.pdf", byteCount: 240_000)), delivery: .delivered, isOutgoing: true),
             Message(id: "m-12", senderID: them, sentAt: at(500), kind: .system("The message timer was updated. New messages will disappear from this chat after 7 days."), isOutgoing: false),
             Message(id: "m-13", senderID: me, sentAt: at(120), kind: .text("Hold the mic to record. Slide left to cancel, up to lock.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-14", senderID: them, sentAt: at(90), kind: .text("Swipe a bubble right to reply. Long-press for reactions.", preview: nil), isOutgoing: false),
-            Message(id: "m-15", senderID: them, sentAt: at(89), kind: .image(Media(source: logo, width: 640, height: 640, caption: "Logo")), isOutgoing: false),
+            Message(id: "m-15", senderID: them, sentAt: at(89), kind: .image(Media(source: incomingPhoto, width: 640, height: 640, caption: "Logo")), isOutgoing: false),
             Message(id: "m-16", senderID: me, sentAt: at(60), kind: .text("Back returns to the inbox. Tap a title to switch theme.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-17", senderID: them, sentAt: at(45), kind: .text("Default theme is mint. Tap the title for the blue accent.", preview: nil), isOutgoing: false),
             Message(id: "m-18", senderID: me, sentAt: at(30), kind: .text("Composer is Zustand B — floating plus, pill, camera, mic.", preview: nil), delivery: .read, isOutgoing: true),

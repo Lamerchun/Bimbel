@@ -20,9 +20,39 @@ enum MaterialFactory {
 
 /// Hairline-free glass that does not eat taps meant for controls.
 final class NonInteractiveEffectView: UIVisualEffectView {
+    override init(effect: UIVisualEffect?) {
+        super.init(effect: effect)
+        isOpaque = false
+        backgroundColor = .clear
+        contentView.isOpaque = false
+        contentView.backgroundColor = .clear
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let hit = super.hitTest(point, with: event)
         return hit === self || hit === contentView ? nil : hit
+    }
+}
+
+enum NavigationChrome {
+    /// System nav bar stays hidden so `material.header` glass can show the list through.
+    static func hideSystemBar(in controller: UIViewController, animated: Bool) {
+        guard let nav = controller.navigationController else { return }
+        nav.setNavigationBarHidden(true, animated: animated)
+        nav.navigationBar.isTranslucent = true
+        nav.navigationBar.shadowImage = UIImage()
+        nav.navigationBar.setBackgroundImage(UIImage(), for: .default)
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.shadowColor = nil
+        appearance.shadowImage = UIImage()
+        appearance.backgroundColor = .clear
+        appearance.backgroundEffect = nil
+        nav.navigationBar.standardAppearance = appearance
+        nav.navigationBar.scrollEdgeAppearance = appearance
+        nav.navigationBar.compactAppearance = appearance
     }
 }
 

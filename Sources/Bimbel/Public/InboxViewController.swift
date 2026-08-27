@@ -40,13 +40,18 @@ open class InboxViewController: UIViewController {
 
     public override func viewDidLoad() {
         super.viewDidLoad()
-        navigationController?.setNavigationBarHidden(true, animated: false)
+        NavigationChrome.hideSystemBar(in: self, animated: false)
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         view.backgroundColor = theme.colors.wallpaper
         configureHierarchy()
         configureTable()
         apply(dataSource.snapshot(), animatingDifferences: false)
         applyChrome()
+    }
+
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        NavigationChrome.hideSystemBar(in: self, animated: animated)
     }
 
     public override func viewDidLayoutSubviews() {
@@ -71,6 +76,7 @@ open class InboxViewController: UIViewController {
         wallpaper.bimbelPinToEdges(of: view)
 
         tableView.backgroundColor = .clear
+        tableView.isOpaque = false
         tableView.contentInsetAdjustmentBehavior = .never
         tableView.separatorInset = UIEdgeInsets(top: 0, left: 78, bottom: 0, right: 0)
         tableView.rowHeight = 68

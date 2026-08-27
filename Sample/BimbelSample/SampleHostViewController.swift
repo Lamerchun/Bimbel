@@ -17,6 +17,14 @@ final class SampleHostViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         nav.setNavigationBarHidden(true, animated: false)
+        nav.navigationBar.isTranslucent = true
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.shadowColor = nil
+        appearance.backgroundColor = .clear
+        appearance.backgroundEffect = nil
+        nav.navigationBar.standardAppearance = appearance
+        nav.navigationBar.scrollEdgeAppearance = appearance
         nav.interactivePopGestureRecognizer?.isEnabled = true
         addChild(nav)
         view.addSubview(nav.view)

@@ -61,8 +61,10 @@ open class ConversationViewController: UIViewController {
 
     public override func viewDidLoad() {
         super.viewDidLoad()
-        navigationController?.setNavigationBarHidden(true, animated: false)
+        NavigationChrome.hideSystemBar(in: self, animated: false)
         view.backgroundColor = theme.colors.wallpaper
+        edgesForExtendedLayout = .all
+        extendedLayoutIncludesOpaqueBars = true
         configureHierarchy()
         configureCollection()
         configureHeader()
@@ -72,9 +74,15 @@ open class ConversationViewController: UIViewController {
         applyChrome()
     }
 
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        NavigationChrome.hideSystemBar(in: self, animated: animated)
+    }
+
     public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         bindKeyboardIfNeeded()
+        keyboardTracker.syncListInsets(flushingLayout: true)
         scrollToBottom(animated: false)
     }
 
@@ -94,6 +102,7 @@ open class ConversationViewController: UIViewController {
         next.appendItems(rows, toSection: .thread)
         let stickToBottom = isNearBottom
         diffable.apply(next, animatingDifferences: animatingDifferences)
+        keyboardTracker.syncListInsets(flushingLayout: true)
         if stickToBottom {
             scrollToBottom(animated: animatingDifferences)
         }
@@ -112,9 +121,15 @@ open class ConversationViewController: UIViewController {
         chatLayout.keepContentAtBottomOfVisibleArea = true
         chatLayout.settings.estimatedItemSize = CGSize(width: UIScreen.main.bounds.width, height: 84)
         chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
-        chatLayout.settings.additionalInsets = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
+        chatLayout.settings.additionalInsets = UIEdgeInsets(
+            top: theme.layout.composerGap,
+            left: 0,
+            bottom: theme.layout.composerGap + 4,
+            right: 0
+        )
 
         collectionView.backgroundColor = .clear
+        collectionView.isOpaque = false
         collectionView.alwaysBounceVertical = true
         collectionView.keyboardDismissMode = .interactive
         collectionView.contentInsetAdjustmentBehavior = .never
@@ -213,6 +228,7 @@ open class ConversationViewController: UIViewController {
             guard let self else { return 0 }
             return -self.view.safeAreaInsets.bottom
         }
+        keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
         composer.setContentHuggingPriority(.required, for: .vertical)
         composer.setContentCompressionResistancePriority(.required, for: .vertical)
         keyboardTracker.attach(composer: composer, collectionView: collectionView)
@@ -252,6 +268,14 @@ open class ConversationViewController: UIViewController {
         fab.backgroundColor = theme.colors.fabFill
         fab.tintColor = theme.colors.fabIcon
         fab.layer.cornerRadius = 22
+        chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
+        chatLayout.settings.additionalInsets = UIEdgeInsets(
+            top: theme.layout.composerGap,
+            left: 0,
+            bottom: theme.layout.composerGap + 4,
+            right: 0
+        )
+        keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
         collectionView.reloadData()
     }
 
@@ -590,7 +614,7 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidChangeHeight(_ composer: ComposerView) {
-        keyboardTracker.syncListInsets()
+        keyboardTracker.syncListInsets(flushingLayout: true)
     }
 }
 

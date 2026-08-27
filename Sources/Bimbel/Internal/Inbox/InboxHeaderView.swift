@@ -24,11 +24,17 @@ final class InboxHeaderView: UIView, UITextFieldDelegate {
     var contentHeight: CGFloat { 132 }
 
     private func setup() {
+        isOpaque = false
         backgroundColor = .clear
+        layer.shadowOpacity = 0
         addSubview(glass)
+        glass.isOpaque = false
+        glass.backgroundColor = .clear
         glass.bimbelPinToEdges(of: self)
 
         content.translatesAutoresizingMaskIntoConstraints = false
+        content.backgroundColor = .clear
+        content.isOpaque = false
         addSubview(content)
 
         titleLabel.font = .systemFont(ofSize: 34, weight: .bold)
@@ -92,6 +98,15 @@ final class InboxHeaderView: UIView, UITextFieldDelegate {
 
     func apply(title: String, theme: ConversationTheme) {
         self.theme = theme
+        isOpaque = false
+        backgroundColor = .clear
+        glass.isOpaque = false
+        glass.backgroundColor = .clear
+        if theme.materials.usesLiquidGlassWhenAvailable, let effect = MaterialFactory.makeLiquidGlassEffect() {
+            glass.effect = effect
+        } else {
+            glass.effect = UIBlurEffect(style: theme.materials.headerBlurStyle)
+        }
         titleLabel.text = title
         titleLabel.textColor = theme.colors.headerTitle
         searchField.backgroundColor = theme.colors.composerFill
