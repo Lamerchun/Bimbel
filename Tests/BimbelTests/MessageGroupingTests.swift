@@ -129,6 +129,29 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertFalse(cell.contentView.subviews.contains { abs($0.frame.height - 1) < 0.5 })
     }
 
+    func testReactionStaysOnIncomingTextNotMovedToCaptionRow() {
+        let text = message(
+            "keys",
+            outgoing: false,
+            kind: .text("Don't forget the keys this time.", preview: nil)
+        )
+        var withReaction = text
+        withReaction.reactions = [Reaction(emoji: "👍", userIDs: [me])]
+        let rows = MessageGrouping.rows(
+            from: ConversationSnapshot(conversationID: "c", messages: [withReaction])
+        )
+        let reacted = rows.compactMap { row -> Message? in
+            guard case .message(let message, _) = row else { return nil }
+            return message.reactions.isEmpty ? nil : message
+        }
+        XCTAssertEqual(reacted.count, 1)
+        if case .text(let body, _) = reacted[0].kind {
+            XCTAssertEqual(body, "Don't forget the keys this time.")
+        } else {
+            XCTFail("Lock 3 reaction must sit on incoming text, not media")
+        }
+    }
+
     func testDeliveryTicksAreOverlappingTemplateGlyphNotSFCheckmark() {
         let sent = try XCTUnwrap(DeliveryTicks.image(for: .sent))
         let delivered = try XCTUnwrap(DeliveryTicks.image(for: .delivered))

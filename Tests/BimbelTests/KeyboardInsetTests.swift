@@ -86,4 +86,26 @@ final class KeyboardInsetTests: XCTestCase {
         )
         XCTAssertEqual(overlap, 100)
     }
+
+    func testNearBottomUsesInsetFromBeforeKeyboardWrite() {
+        // Pinned to bottom while docked (inset 100).
+        XCTAssertTrue(
+            ComposerKeyboardTracker.isNearBottom(
+                contentHeight: 1200,
+                offsetY: 500,
+                boundsHeight: 800,
+                adjustedBottomInset: 100
+            )
+        )
+        // Same offset after contentInset.bottom grows for the accessory+keys.
+        // Must not treat this as a user scroll-away or the keyboard-up pin is skipped.
+        XCTAssertFalse(
+            ComposerKeyboardTracker.isNearBottom(
+                contentHeight: 1200,
+                offsetY: 500,
+                boundsHeight: 800,
+                adjustedBottomInset: 366
+            )
+        )
+    }
 }

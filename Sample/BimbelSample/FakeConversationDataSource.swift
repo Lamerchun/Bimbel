@@ -237,7 +237,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "sample-thread",
                 title: "Ada",
-                preview: "See you there.",
+                preview: "On my way.",
                 timestamp: now.addingTimeInterval(-2 * 60),
                 avatar: adaAvatar,
                 unreadCount: 4
@@ -328,7 +328,14 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             Message(id: "m-06", senderID: me, sentAt: at(89), kind: .image(Media(source: outgoingPhoto, width: 800, height: 800)), delivery: .read, isOutgoing: true),
             Message(id: "m-07", senderID: them, sentAt: at(70), kind: .text("That's the print from last week?", preview: nil), isOutgoing: false),
             Message(id: "m-08", senderID: them, sentAt: at(69), kind: .text("Hold on — sending the one I meant.", preview: nil), isOutgoing: false),
-            Message(id: "m-09", senderID: them, sentAt: at(68), kind: .image(Media(source: incomingPhoto, width: 640, height: 640)), isOutgoing: false),
+            Message(
+                id: "m-09",
+                senderID: them,
+                sentAt: at(68),
+                kind: .image(Media(source: incomingPhoto, width: 640, height: 640)),
+                reactions: [Reaction(emoji: "❤️", userIDs: [me])],
+                isOutgoing: false
+            ),
             Message(id: "m-10", senderID: me, sentAt: at(55), kind: .text("Yes. That's it.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-11", senderID: them, sentAt: at(50), kind: .voice(Voice(duration: 6, waveform: [0.2, 0.4, 0.8, 0.5, 0.9, 0.3, 0.6])), isOutgoing: false),
             Message(id: "m-12", senderID: me, sentAt: at(42), kind: .text("I'll pin it on the board when I get in.", preview: nil), delivery: .delivered, isOutgoing: true),
@@ -337,24 +344,26 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             Message(id: "m-15", senderID: me, sentAt: at(24), kind: .text("1:30 works. The usual place.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-16", senderID: me, sentAt: at(20), kind: .voice(Voice(duration: 3, waveform: [0.3, 0.7, 0.4, 0.9, 0.5])), delivery: .read, isOutgoing: true),
             Message(id: "m-17", senderID: them, sentAt: at(14), kind: .text("I'll grab the window table.", preview: nil), isOutgoing: false),
-            Message(id: "m-18", senderID: them, sentAt: at(8), kind: .text("Don't forget the keys this time.", preview: nil), isOutgoing: false),
+            // Keyboard-up crop (composer + QWERTZ = bottom third): keep this tail short.
+            // Lock 3 is the 👍 under incoming text, not under the photo (m-09 is off-screen here).
+            Message(
+                id: "m-18",
+                senderID: them,
+                sentAt: at(8),
+                kind: .text("Don't forget the keys this time.", preview: nil),
+                reactions: [Reaction(emoji: "👍", userIDs: [me])],
+                isOutgoing: false
+            ),
             Message(id: "m-19", senderID: me, sentAt: at(4), kind: .text("Already in my pocket.", preview: nil), delivery: .read, isOutgoing: true),
             Message(
                 id: "m-20",
                 senderID: them,
-                sentAt: at(3),
-                kind: .image(Media(source: incomingPhoto, width: 720, height: 540)),
-                isOutgoing: false
-            ),
-            Message(id: "m-21", senderID: me, sentAt: at(2), kind: .text("Got it.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(
-                id: "m-22",
-                senderID: them,
-                sentAt: at(1),
+                sentAt: at(2),
                 kind: .text("See you there.", preview: nil),
                 reactions: [Reaction(emoji: "👍", userIDs: [me])],
                 isOutgoing: false
-            )
+            ),
+            Message(id: "m-21", senderID: me, sentAt: at(1), kind: .text("On my way.", preview: nil), delivery: .read, isOutgoing: true)
         ]
     }
 

@@ -263,6 +263,7 @@ open class ConversationViewController: UIViewController {
         composer.setContentCompressionResistancePriority(.required, for: .vertical)
         keyboardTracker.onApplied = { [weak self] _, layoutBottom, flushingLayout in
             self?.applyComposerLayoutPadding(layoutBottom)
+            // `flushingLayout` is only true outside collection callbacks (crash contract).
             if flushingLayout { self?.pinToBottomIfNeeded() }
         }
         keyboardTracker.attach(host: view, composer: composer, collectionView: collectionView)
@@ -590,9 +591,14 @@ extension ConversationViewController: ChatLayoutDelegate {
 
 extension ConversationViewController: UICollectionViewDelegate {
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        let inset = scrollView.adjustedContentInset
-        let visibleBottom = scrollView.contentOffset.y + scrollView.bounds.height - inset.bottom
-        isNearBottom = (scrollView.contentSize.height - visibleBottom) < 80
+        if !keyboardTracker.isMutatingInsets {
+            isNearBottom = ComposerKeyboardTracker.isNearBottom(
+                contentHeight: scrollView.contentSize.height,
+                offsetY: scrollView.contentOffset.y,
+                boundsHeight: scrollView.bounds.height,
+                adjustedBottomInset: scrollView.adjustedContentInset.bottom
+            )
+        }
         updateFAB()
         loadOlderIfNeeded()
         keyboardTracker.syncListInsets()
@@ -657,7 +663,7 @@ extension ConversationViewController: UICollectionViewDelegate {
 extension ConversationViewController: ComposerViewDelegate {
     func composerDidChangeText(_ composer: ComposerView) {
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: isSheetPresented, reply: replyTarget)
-        keyboardTracker.syncListInsets()
+        keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
     func composerDidTapPlus(_ composer: ComposerView) {
@@ -716,7 +722,7 @@ extension ConversationViewController: ComposerViewDelegate {
 
     func composerDidChangeHeight(_ composer: ComposerView) {
         accessoryContainer.invalidateIntrinsicContentSize()
-        keyboardTracker.syncListInsets()
+        keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
     func composerWillBeginEditing(_ composer: ComposerView) {

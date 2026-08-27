@@ -28,6 +28,12 @@ final class ComposerKeyboardTracker {
 
     var isComposerInAccessory = false
     var bottomBreathingRoom: CGFloat = 8
+    /// Depth while this tracker writes `contentInset` / notifies `onApplied`.
+    /// Nested `scrollViewDidScroll` → `syncListInsets()` must not clear the flag
+    /// before the outer write finishes, or `isNearBottom` flips false and the
+    /// keyboard-up pin is skipped.
+    private var insetMutationDepth = 0
+    var isMutatingInsets: Bool { insetMutationDepth > 0 }
     var dismissPanEnabled = true {
         didSet { applyDismissMode() }
     }
@@ -51,6 +57,8 @@ final class ComposerKeyboardTracker {
 
     func syncListInsets(flushingLayout: Bool = false) {
         guard let host, let collectionView else { return }
+        insetMutationDepth += 1
+        defer { insetMutationDepth -= 1 }
         if flushingLayout {
             host.layoutIfNeeded()
         }
@@ -68,6 +76,10 @@ final class ComposerKeyboardTracker {
             breathing: bottomBreathingRoom
         )
         let insetChanged = abs(overlap - lastInset) > 0.5
+        // Hold `isNearBottom` across the inset write. `contentInset.bottom` growing
+        // fires `scrollViewDidScroll` and would otherwise look like a user scroll-away,
+        // skipping the keyboard-up pin so the last bubble (and its reaction chip)
+        // stays under the composer.
         guard insetChanged else {
             if flushingLayout { onApplied?(overlap, padding, true) }
             return
@@ -79,6 +91,20 @@ final class ComposerKeyboardTracker {
         collectionView.verticalScrollIndicatorInsets.bottom = overlap
         collectionView.scrollIndicatorInsets.bottom = overlap
         onApplied?(overlap, padding, flushingLayout)
+    }
+
+    /// Whether the last item is within `threshold` of the visible bottom.
+    /// Use the inset from *before* a keyboard-up write; the larger inset alone
+    /// makes the same offset look far from the bottom.
+    static func isNearBottom(
+        contentHeight: CGFloat,
+        offsetY: CGFloat,
+        boundsHeight: CGFloat,
+        adjustedBottomInset: CGFloat,
+        threshold: CGFloat = 80
+    ) -> Bool {
+        let visibleBottom = offsetY + boundsHeight - adjustedBottomInset
+        return (contentHeight - visibleBottom) < threshold
     }
 
     /// ChatLayout `additionalInsets.bottom`: composer height + gap so the last
