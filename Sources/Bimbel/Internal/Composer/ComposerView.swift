@@ -1,5 +1,15 @@
 import UIKit
 
+/// Signal-iOS `ConversationBottomBar`. The conversation VC pins the bar using
+/// this flag — the composer never becomes `inputAccessoryView`.
+///
+/// Return `true` to have the view controller put this bar above the keyboard
+/// (using `keyboardLayoutGuide`). Return `false` to constrain the bottom edge
+/// to the bottom of the screen.
+protocol ConversationBottomBar: UIView {
+    var shouldAttachToKeyboardLayoutGuide: Bool { get }
+}
+
 @MainActor
 protocol ComposerViewDelegate: AnyObject {
     func composerDidChangeText(_ composer: ComposerView)
@@ -162,7 +172,19 @@ final class ComposerView: UIView, UITextViewDelegate {
         installChromeDismissPassthrough()
     }
 
-    /// Vertical pans on Plus / pill chrome / mic start UIKit's accessory dismiss.
+    override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        guard superview != nil else { return }
+        // Signal `ConversationInputToolbar.didMoveToSuperview`: on iOS 26 the
+        // first access of `keyboardLayoutGuide` can report only the home-
+        // indicator height (~34). Touch it early so later constraints see the
+        // real keyboard.
+        if #available(iOS 26, *) {
+            _ = keyboardLayoutGuide
+        }
+    }
+
+    /// Vertical pans on Plus / pill chrome / mic start UIKit's interactive dismiss.
     /// Text selection and an in-progress voice hold are excluded.
     private func installChromeDismissPassthrough() {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handleChromeDismissPan(_:)))
@@ -182,7 +204,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         return pan
     }
 
-    /// Intentionally empty: UIKit's `.interactiveWithAccessory` owns the keyboard.
+    /// Intentionally empty: `keyboardDismissMode = .interactive` owns the keyboard.
     /// The recognizer exists so chrome pans are not eaten by UIButton tracking.
     @objc private func handleChromeDismissPan(_ pan: UIPanGestureRecognizer) {}
 
@@ -330,57 +352,10 @@ final class ComposerView: UIView, UITextViewDelegate {
     }
 }
 
-final class ComposerTextView: UITextView {
-    /// Unused for the accessory. The conversation VC owns `inputAccessoryView`.
-    /// Returning this text view's ancestor here is recursive and UIKit drops the bar.
-    weak var accessoryContainer: UIView?
+final class ComposerTextView: UITextView {}
 
-    override var inputAccessoryView: UIView? {
-        get { nil }
-        set {}
-    }
-}
-
-/// Clear host for Zustand B while the keyboard is up. Hangs off the conversation VC,
-/// not off the text view. `allowsSelfSizing` grows with the pill / reply banner.
-final class ComposerAccessoryContainer: UIInputView {
-    private(set) weak var composer: ComposerView?
-
-    init() {
-        super.init(
-            frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 58),
-            inputViewStyle: .default
-        )
-        allowsSelfSizing = true
-        backgroundColor = .clear
-        isOpaque = false
-        autoresizingMask = [.flexibleHeight, .flexibleWidth]
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func embed(_ composer: ComposerView) {
-        self.composer = composer
-        if composer.superview === self {
-            invalidateIntrinsicContentSize()
-            return
-        }
-        composer.removeFromSuperview()
-        addSubview(composer)
-        composer.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            composer.topAnchor.constraint(equalTo: topAnchor),
-            composer.leadingAnchor.constraint(equalTo: leadingAnchor),
-            composer.trailingAnchor.constraint(equalTo: trailingAnchor),
-            composer.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-        invalidateIntrinsicContentSize()
-    }
-
-    override var intrinsicContentSize: CGSize {
-        let height = composer?.intrinsicContentSize.height ?? 58
-        return CGSize(width: UIView.noIntrinsicMetric, height: max(58, height))
-    }
+extension ComposerView: ConversationBottomBar {
+    var shouldAttachToKeyboardLayoutGuide: Bool { true }
 }
 
 extension ComposerView: UIGestureRecognizerDelegate {

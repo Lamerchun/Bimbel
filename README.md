@@ -63,16 +63,17 @@ Coding-agent notes: [AGENTS.md](AGENTS.md) · [docs/for-coding-agents.md](docs/f
 
 ## Keyboard
 
-The conversation VC owns the accessory. ChatLayout is not given `additionalSafeAreaInsets`. InputBarAccessoryView is not used.
+The conversation VC pins the Zustand B composer to `keyboardLayoutGuide` (Signal-iOS `ConversationBottomBar`). ChatLayout is not given `additionalSafeAreaInsets`. There is no `inputAccessoryView`. InputBarAccessoryView is not used.
 
-1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar. One instance.
-2. Keyboard hidden: that instance is docked in the conversation VC at the safe-area bottom (wallpaper shows through).
-3. Keyboard visible: `removeFromSuperview()` first, embed the same view in the VC’s `inputAccessoryView` container, **then** `becomeFirstResponder`. Never leave it in the VC hierarchy at the same time as accessory. The VC’s `inputAccessoryView` is the container; the text view returns nil (returning its ancestor is recursive and UIKit drops the bar).
-4. `collectionView.keyboardDismissMode = .interactiveWithAccessory` so drag-to-dismiss starts at the composer, not the keys.
-5. List `contentInset.bottom` has one owner (`ComposerKeyboardTracker`): the top of the composer plus `layout.listComposerGap` (8). Do not add keyboard height + composer height. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`.
+1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar. One instance that **stays in the conversation VC**.
+2. `shouldAttachToKeyboardLayoutGuide == true`: `composer.bottomAnchor = keyboardLayoutGuide.topAnchor`. Message-request style bars pin to the container / safe-area bottom instead.
+3. `textViewShouldBeginEditing` returns **true**. Tap Message focuses immediately. The composer never leaves the VC, so it cannot jump under the home indicator.
+4. `collectionView.keyboardDismissMode = .interactive`. The bar rides the layout guide, so it follows the drag.
+5. List `contentInset.bottom` has one owner (`ComposerKeyboardTracker`): the top of the composer plus `layout.listComposerGap` (8). Do not add keyboard height on top of a layout-guide-pinned bar. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`.
 6. Attach sheet is the text view’s `inputView`. Voice-lock and the attach sheet disable the dismiss pan.
+7. iOS 26: first access of `keyboardLayoutGuide` can report only the home-indicator height (~34). Touch the guide in `viewDidLoad` / `didMoveToSuperview` so later constraints see the real keyboard.
 
-Do not pin the composer to `keyboardLayoutGuide`. Do not use IBAV `KeyboardManager` as the position owner.
+Do not use IBAV `KeyboardManager` as the position owner. SwiftUI `ConversationView` is a `UIViewControllerRepresentable` around this UIKit controller.
 
 ## Theme & materials
 

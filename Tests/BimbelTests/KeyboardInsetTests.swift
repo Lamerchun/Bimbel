@@ -10,101 +10,45 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertEqual(gap, 8)
     }
 
-    func testAccessoryOverlapIsComposerHeightPlusListGapNotKeyboardOnly() {
-        // Keys at 500. Keyboard-only covering edge would be 800 - 500 + 8 = 308.
-        // Accessory bar sits on the keys (top 442): composer 58 + listComposerGap 8.
+    func testOverlapIsComposerTopPlusGapNotKeyboardHeightPlusComposer() {
+        // Composer sitting on the keys (top 442). Covering edge is that top + 8.
+        // Do not add keyboard height (300) on top of the already-raised bar.
         let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: true,
-            keyboardTop: 500,
             collectionMaxY: 800,
             composerTopInCollection: 442,
-            composerIsInAccessoryWindow: true,
-            dockedComposerHeight: 58,
+            composerHeight: 58,
             safeAreaBottom: 34,
             listComposerGap: gap
         )
-        XCTAssertEqual(overlap, 58 + gap + (800 - 500), "contentInset.bottom = composer height + 8 above the keys")
+        XCTAssertEqual(overlap, 800 - 442 + gap)
         XCTAssertEqual(overlap, 366)
-        XCTAssertNotEqual(overlap, 800 - 500 + gap, "must not use the keys-only keyboard frame as the covering edge")
-    }
-
-    func testAccessoryDoesNotTreatKeysTopAsCoveringEdge() {
-        // Convert reported the same Y as the keys (accessory not in the keyboard
-        // window). Covering edge is still the bar on the keys, not the keys.
-        let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: true,
-            keyboardTop: 500,
-            collectionMaxY: 800,
-            composerTopInCollection: 500,
-            composerIsInAccessoryWindow: false,
-            dockedComposerHeight: 58,
-            safeAreaBottom: 34,
-            listComposerGap: gap
-        )
-        XCTAssertEqual(overlap, 366)
-        XCTAssertEqual(
-            ComposerKeyboardTracker.accessoryCoveringTop(
-                keyboardTop: 500,
-                composerTopInCollection: 500,
-                composerIsInAccessoryWindow: false,
-                composerH: 58
-            ),
-            442
+        XCTAssertNotEqual(
+            overlap,
+            (800 - 442) + 300 + gap,
+            "must not add keyboard height on top of a layout-guide-pinned composer"
         )
     }
 
-    func testAccessoryKeyboardFrameThatIncludesBarDoesNotDoubleCount() {
+    func testDockedOverlapUsesComposerTop() {
         let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: true,
-            keyboardTop: 442,
-            collectionMaxY: 800,
-            composerTopInCollection: 442,
-            composerIsInAccessoryWindow: true,
-            dockedComposerHeight: 58,
-            safeAreaBottom: 34,
-            listComposerGap: gap
-        )
-        XCTAssertEqual(overlap, 366)
-    }
-
-    func testAccessoryInsetAssumesComposerAboveKeysWhenComposerTopUnknown() {
-        let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: true,
-            keyboardTop: 500,
-            collectionMaxY: 800,
-            composerTopInCollection: nil,
-            dockedComposerHeight: 58,
-            safeAreaBottom: 34,
-            listComposerGap: gap
-        )
-        XCTAssertEqual(overlap, 366)
-    }
-
-    func testDockedInsetUsesComposerHeightNotKeyboardPlusComposer() {
-        let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: false,
-            keyboardTop: 800,
             collectionMaxY: 800,
             composerTopInCollection: 708,
-            dockedComposerHeight: 58,
+            composerHeight: 58,
             safeAreaBottom: 34,
             listComposerGap: gap
         )
         XCTAssertEqual(overlap, 100)
     }
 
-    func testAccessoryIgnoresStaleDockedComposerTopBelowKeyboard() {
+    func testOverlapFallsBackToComposerPlusSafeArea() {
         let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: true,
-            keyboardTop: 500,
             collectionMaxY: 800,
-            composerTopInCollection: 708,
-            composerIsInAccessoryWindow: false,
-            dockedComposerHeight: 58,
+            composerTopInCollection: nil,
+            composerHeight: 58,
             safeAreaBottom: 34,
             listComposerGap: gap
         )
-        XCTAssertEqual(overlap, 366)
+        XCTAssertEqual(overlap, 100)
     }
 
     func testLayoutBottomPaddingIsComposerPlusListGapNotTail() {
@@ -117,19 +61,6 @@ final class KeyboardInsetTests: XCTestCase {
             66,
             "residual tail (~3) is inside the cell, not added on top of the 8"
         )
-    }
-
-    func testDockedInsetFallsBackToComposerPlusSafeArea() {
-        let overlap = ComposerKeyboardTracker.overlap(
-            isComposerInAccessory: false,
-            keyboardTop: 800,
-            collectionMaxY: 800,
-            composerTopInCollection: nil,
-            dockedComposerHeight: 58,
-            safeAreaBottom: 34,
-            listComposerGap: gap
-        )
-        XCTAssertEqual(overlap, 100)
     }
 
     func testNearBottomUsesInsetFromBeforeKeyboardWrite() {
@@ -158,28 +89,11 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertNil(ComposerKeyboardTracker.keyboardFrameEnd(from: nil))
     }
 
-    func testEmbedRemovesComposerFromPreviousSuperview() {
-        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 800))
-        let composer = ComposerView()
-        host.addSubview(composer)
-        XCTAssertTrue(composer.superview === host)
-
-        let container = ComposerAccessoryContainer()
-        container.embed(composer)
-
-        XCTAssertTrue(composer.superview === container, "one composer; never the VC and accessory at once")
-        XCTAssertFalse(host.subviews.contains(where: { $0 === composer }))
-        XCTAssertEqual(container.subviews.filter { $0 === composer }.count, 1)
+    func testComposerAttachesToKeyboardLayoutGuide() {
+        XCTAssertTrue(ComposerView().shouldAttachToKeyboardLayoutGuide)
     }
 
-    func testTextViewInputAccessoryViewIsNeverItsAncestor() {
-        let composer = ComposerView()
-        let container = ComposerAccessoryContainer()
-        container.embed(composer)
-        composer.textView.accessoryContainer = container
-        XCTAssertNil(
-            composer.textView.inputAccessoryView,
-            "returning the ancestor is recursive; UIKit drops the bar. The VC owns inputAccessoryView."
-        )
+    func testTextViewHasNoInputAccessoryView() {
+        XCTAssertNil(ComposerTextView().inputAccessoryView)
     }
 }

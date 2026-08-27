@@ -19,7 +19,7 @@ open class ConversationViewController: UIViewController {
     }
     public var actions: ConversationActions
     /// Host sets this before the conversation appears (e.g. `BIMBEL_SHOT=ada`).
-    /// `viewDidAppear` reparents, then focuses the text view so QWERTZ stands.
+    /// `viewDidAppear` focuses the layout-guide-pinned text view.
     public var presentsKeyboardOnAppear = false
 
     private let wallpaper = UIView()
@@ -28,7 +28,6 @@ open class ConversationViewController: UIViewController {
     private var diffable: UICollectionViewDiffableDataSource<ChatSection, ChatRow>!
     private let headerView = ConversationHeaderView()
     private let composer = ComposerView()
-    private let accessoryContainer = ComposerAccessoryContainer()
     private let keyboardTracker = ComposerKeyboardTracker()
     private let attachmentSheet = AttachmentSheetView()
     private let voice = VoiceRecordingController()
@@ -40,14 +39,8 @@ open class ConversationViewController: UIViewController {
     private var replyTarget: Message?
     private var staged: [StagedAttachment] = []
     private var didBindKeyboard = false
-    private var isComposerInAccessory = false
-    /// True while the composer is leaving the VC for the accessory (or the reverse).
-    /// `textViewDidEndEditing` must not dock during that window — that put the
-    /// same view in two layouts and the keyboard never settled.
-    private var isMovingComposer = false
-    private var dockConstraints: [NSLayoutConstraint] = []
+    private var bottomBarConstraints: [NSLayoutConstraint] = []
     private var fabAboveComposer: NSLayoutConstraint?
-    private var fabAboveKeyboard: NSLayoutConstraint?
     private var isLoadingOlder = false
     private var isNearBottom = true
     private let reactionPalette = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
@@ -71,18 +64,15 @@ open class ConversationViewController: UIViewController {
     @available(*, unavailable)
     public required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    public override var canBecomeFirstResponder: Bool { true }
-
-    public override var inputAccessoryView: UIView? {
-        composer.superview === accessoryContainer ? accessoryContainer : nil
-    }
-
     public override func viewDidLoad() {
         super.viewDidLoad()
         NavigationChrome.hideSystemBar(in: self, animated: false)
         view.backgroundColor = theme.colors.wallpaper
         edgesForExtendedLayout = .all
         extendedLayoutIncludesOpaqueBars = true
+        // Signal iOS 26: first access of `keyboardLayoutGuide` can report only
+        // the home-indicator height (~34). Touch it before pinning the composer.
+        _ = view.keyboardLayoutGuide
         configureHierarchy()
         configureCollection()
         configureHeader()
@@ -100,7 +90,6 @@ open class ConversationViewController: UIViewController {
     public override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         composer.textView.resignFirstResponder()
-        dockComposerInHost()
     }
 
     public override func viewDidDisappear(_ animated: Bool) {
@@ -117,7 +106,7 @@ open class ConversationViewController: UIViewController {
         scrollToBottom(animated: false)
         if presentsKeyboardOnAppear {
             presentsKeyboardOnAppear = false
-            presentKeyboardAfterAccessoryReparent()
+            presentKeyboard()
         }
     }
 
@@ -144,20 +133,15 @@ open class ConversationViewController: UIViewController {
         updateFAB()
     }
 
-    /// Reparent the composer into `inputAccessoryView`, then focus the text view
-    /// so the software keyboard stands. Call this after the conversation has
-    /// appeared. Do not focus first — that docks and accessories at once.
-    public func presentKeyboardAfterAccessoryReparent() {
+    /// Focus the layout-guide-pinned text view. The composer never leaves the VC.
+    public func presentKeyboard() {
         loadViewIfNeeded()
         guard view.window != nil else {
             presentsKeyboardOnAppear = true
             return
         }
         bindKeyboardIfNeeded()
-        isMovingComposer = true
-        moveComposerToAccessory()
         composer.textView.becomeFirstResponder()
-        isMovingComposer = false
     }
 
     // MARK: - Hierarchy
@@ -185,7 +169,7 @@ open class ConversationViewController: UIViewController {
         collectionView.backgroundColor = .clear
         collectionView.isOpaque = false
         collectionView.alwaysBounceVertical = true
-        collectionView.keyboardDismissMode = .interactiveWithAccessory
+        collectionView.keyboardDismissMode = .interactive
         collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.delegate = self
         view.addSubview(collectionView)
@@ -204,12 +188,7 @@ open class ConversationViewController: UIViewController {
 
         view.addSubview(composer)
         composer.translatesAutoresizingMaskIntoConstraints = false
-        dockConstraints = [
-            composer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            composer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            composer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
-        ]
-        NSLayoutConstraint.activate(dockConstraints)
+        updateBottomBar()
 
         view.addSubview(voiceOverlay)
         voiceOverlay.bimbelPinToEdges(of: view)
@@ -223,16 +202,28 @@ open class ConversationViewController: UIViewController {
         view.addSubview(fab)
         fab.translatesAutoresizingMaskIntoConstraints = false
         fabAboveComposer = fab.bottomAnchor.constraint(equalTo: composer.topAnchor, constant: -10)
-        fabAboveKeyboard = fab.bottomAnchor.constraint(
-            equalTo: view.keyboardLayoutGuide.topAnchor,
-            constant: -10
-        )
         NSLayoutConstraint.activate([
             fab.widthAnchor.constraint(equalToConstant: 44),
             fab.heightAnchor.constraint(equalToConstant: 44),
             fab.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
             fabAboveComposer!
         ])
+    }
+
+    /// Signal `updateBottomBar()`. Composer stays in this VC and rides
+    /// `keyboardLayoutGuide` when `shouldAttachToKeyboardLayoutGuide` is true.
+    private func updateBottomBar() {
+        NSLayoutConstraint.deactivate(bottomBarConstraints)
+        let leading = composer.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+        let trailing = composer.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        let bottom: NSLayoutConstraint
+        if composer.shouldAttachToKeyboardLayoutGuide {
+            bottom = composer.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
+        } else {
+            bottom = composer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        }
+        bottomBarConstraints = [leading, trailing, bottom]
+        NSLayoutConstraint.activate(bottomBarConstraints)
     }
 
     private func configureCollection() {
@@ -286,7 +277,6 @@ open class ConversationViewController: UIViewController {
         attachmentSheet.onAction = { [weak self] in self?.handleAttachment($0) }
         attachmentSheet.onPickAsset = { [weak self] in self?.stageAsset($0) }
         composer.textView.inputView = nil
-        composer.textView.accessoryContainer = nil
     }
 
     private func bindKeyboardIfNeeded() {
@@ -303,70 +293,8 @@ open class ConversationViewController: UIViewController {
         keyboardTracker.attach(
             host: view,
             composer: composer,
-            accessoryBar: accessoryContainer,
             collectionView: collectionView
         )
-        if composer.superview !== accessoryContainer {
-            dockComposerInHost()
-        }
-    }
-
-    private func moveComposerToAccessory() {
-        if composer.superview === accessoryContainer {
-            isComposerInAccessory = true
-            keyboardTracker.isComposerInAccessory = true
-            accessoryContainer.invalidateIntrinsicContentSize()
-            // Do not steal first responder or reloadInputViews while the text
-            // view is already editing — that re-queries a nil accessory and drops the bar.
-            if composer.textView.isFirstResponder {
-                return
-            }
-            _ = becomeFirstResponder()
-            reloadInputViews()
-            return
-        }
-        let startedMove = !isMovingComposer
-        isMovingComposer = true
-        defer { if startedMove { isMovingComposer = false } }
-
-        // Out of the VC first. Never layout the same composer in two parents.
-        NSLayoutConstraint.deactivate(dockConstraints)
-        fabAboveComposer?.isActive = false
-        fabAboveKeyboard?.isActive = true
-        composer.removeFromSuperview()
-        accessoryContainer.embed(composer)
-        // VC owns the accessory. The text view must not return this ancestor.
-        composer.textView.accessoryContainer = nil
-        isComposerInAccessory = true
-        keyboardTracker.isComposerInAccessory = true
-        accessoryContainer.invalidateIntrinsicContentSize()
-        _ = becomeFirstResponder()
-        reloadInputViews()
-        keyboardTracker.syncListInsets(flushingLayout: true)
-    }
-
-    private func dockComposerInHost() {
-        if composer.superview === view, !isComposerInAccessory {
-            composer.textView.accessoryContainer = nil
-            return
-        }
-        let startedMove = !isMovingComposer
-        isMovingComposer = true
-        defer { if startedMove { isMovingComposer = false } }
-
-        composer.removeFromSuperview()
-        composer.textView.accessoryContainer = nil
-        isComposerInAccessory = false
-        keyboardTracker.isComposerInAccessory = false
-        view.insertSubview(composer, belowSubview: voiceOverlay)
-        composer.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate(dockConstraints)
-        fabAboveKeyboard?.isActive = false
-        fabAboveComposer?.isActive = true
-        if isFirstResponder {
-            reloadInputViews()
-        }
-        keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
     private func updateDismissPanEnabled() {
@@ -494,7 +422,7 @@ open class ConversationViewController: UIViewController {
         replyTarget = message
         actions.onReply?(message)
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: isSheetPresented, reply: message)
-        presentKeyboardAfterAccessoryReparent()
+        presentKeyboard()
         keyboardTracker.syncListInsets()
     }
 
@@ -505,11 +433,6 @@ open class ConversationViewController: UIViewController {
     private func presentSheet() {
         attachmentSheet.apply(theme: theme)
         attachmentSheet.reloadRecents()
-        if composer.superview !== accessoryContainer {
-            isMovingComposer = true
-            moveComposerToAccessory()
-            isMovingComposer = false
-        }
         composer.textView.inputView = attachmentSheet
         composer.textView.reloadInputViews()
         if !composer.textView.isFirstResponder {
@@ -785,30 +708,15 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidChangeHeight(_ composer: ComposerView) {
-        accessoryContainer.invalidateIntrinsicContentSize()
         keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
     func composerShouldBeginEditing(_ composer: ComposerView) -> Bool {
-        if composer.superview === accessoryContainer {
-            return true
-        }
-        // Abort this first-responder attempt. Focusing while still docked in the
-        // VC leaves the composer in two hierarchies; QWERTZ never settles.
-        isMovingComposer = true
-        moveComposerToAccessory()
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.composer.textView.becomeFirstResponder()
-            self.isMovingComposer = false
-        }
-        return false
+        true
     }
 
     func composerDidEndEditing(_ composer: ComposerView) {
-        guard !isMovingComposer else { return }
-        guard !composer.textView.isFirstResponder else { return }
-        dockComposerInHost()
+        keyboardTracker.syncListInsets(flushingLayout: true)
     }
 }
 

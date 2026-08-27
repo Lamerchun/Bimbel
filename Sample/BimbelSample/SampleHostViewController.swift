@@ -33,7 +33,7 @@ final class SampleHostViewController: UIViewController {
         nav.didMove(toParent: self)
         showInbox()
         if Self.shotName == "ada" {
-            // Flag before push so viewDidAppear reparents, then focuses.
+            // Flag before push so viewDidAppear focuses the layout-guide-pinned composer.
             openConversation(store.adaID, animated: false, presentKeyboardOnAppear: true)
         }
     }
