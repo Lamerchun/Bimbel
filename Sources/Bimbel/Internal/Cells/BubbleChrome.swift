@@ -213,7 +213,7 @@ final class ReactionChipsView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }
 
-final class PaddedLabel: UILabel {
+class PaddedLabel: UILabel {
     var insets = UIEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
     override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: insets)) }
     override var intrinsicContentSize: CGSize {
