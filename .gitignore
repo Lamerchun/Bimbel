@@ -1,0 +1,15 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+Sample/BimbelSample.xcodeproj/project.xcworkspace/xcuserdata/
+Sample/BimbelSample.xcodeproj/xcuserdata/
+Bimbel.xcworkspace/xcuserdata/

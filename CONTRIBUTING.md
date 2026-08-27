@@ -19,4 +19,6 @@ Agent-friendly usage (Swift Package, small public API, example) is in scope. Tre
 
 ## Local setup
 
-Xcode, then open the sample app once it lands on `main`. Until then, research and UI notes are the useful contributions.
+Xcode 16.4+, iOS 17. Open `Bimbel.xcworkspace` or `Sample/BimbelSample.xcodeproj`. The library is a local Swift package at the repo root (`Package.swift`).
+
+Coding-agent embed notes: [AGENTS.md](AGENTS.md).
