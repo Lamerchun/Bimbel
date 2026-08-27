@@ -64,7 +64,10 @@ final class ComposerView: UIView, UITextViewDelegate {
         let plusLong = UILongPressGestureRecognizer(target: self, action: #selector(longPlus(_:)))
         plusButton.addGestureRecognizer(plusLong)
 
-        stickerButton.setImage(UIImage(systemName: "face.smiling"), for: .normal)
+        plusButton.setImage(UIImage(systemName: "plus", withConfiguration: .bimbelComposerLine), for: .normal)
+        plusButton.accessibilityLabel = "Attach"
+
+        stickerButton.setImage(UIImage(systemName: "face.smiling", withConfiguration: .bimbelComposerLine), for: .normal)
         stickerButton.addTarget(self, action: #selector(tapSticker), for: .touchUpInside)
         stickerButton.accessibilityLabel = "Stickers"
 
@@ -125,8 +128,8 @@ final class ComposerView: UIView, UITextViewDelegate {
                 button.widthAnchor.constraint(equalToConstant: 44),
                 button.heightAnchor.constraint(equalToConstant: 44)
             ])
-            button.layer.masksToBounds = true
         }
+        actionButton.layer.masksToBounds = true
 
         row.axis = .horizontal
         row.alignment = .bottom
@@ -196,8 +199,9 @@ final class ComposerView: UIView, UITextViewDelegate {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        plusButton.layer.cornerRadius = plusButton.bounds.height / 2
-        // Camera and plus are glyphs only — no plate. Mic keeps the accent fill.
+        plusButton.layer.cornerRadius = 0
+        plusButton.backgroundColor = .clear
+        // Camera and plus are glyphs only — no plate. Only mic/send gets the accent circle.
         cameraButton.layer.cornerRadius = 0
         actionButton.layer.cornerRadius = actionButton.bounds.height / 2
         pill.layer.cornerRadius = min(theme.radii.composerPill, pill.bounds.height / 2)
@@ -213,6 +217,8 @@ final class ComposerView: UIView, UITextViewDelegate {
         plusButton.tintColor = theme.colors.composerIcon
         cameraButton.backgroundColor = .clear
         cameraButton.tintColor = theme.colors.composerIcon
+        stickerButton.backgroundColor = .clear
+        stickerButton.tintColor = theme.colors.composerIcon
         pill.backgroundColor = theme.colors.composerFill
         pill.layer.borderWidth = 0
         pill.layer.borderColor = UIColor.clear.cgColor
@@ -473,5 +479,5 @@ final class ReplyQuoteView: UIView {
 }
 
 extension UIImage.SymbolConfiguration {
-    static let bimbelComposerLine = UIImage.SymbolConfiguration(pointSize: 22, weight: .light)
+    static let bimbelComposerLine = UIImage.SymbolConfiguration(pointSize: 22, weight: .ultraLight)
 }

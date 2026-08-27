@@ -237,7 +237,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "sample-thread",
                 title: "Ada",
-                preview: "See you there.",
+                preview: "Photo",
                 timestamp: now.addingTimeInterval(-2 * 60),
                 avatar: adaAvatar,
                 unreadCount: 4
@@ -317,8 +317,8 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
     private static func seedAda(me: UserID, them: UserID) -> [Message] {
         let now = Date()
         func at(_ minutes: TimeInterval) -> Date { now.addingTimeInterval(-minutes * 60) }
-        let outgoingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 1)))
-        let incomingPhoto = ImageSource.data(glyphData(title: "A", color: UIColor(red: 0.74, green: 0.66, blue: 0.56, alpha: 1)))
+        let outgoingPhoto = ImageSource.data(photoData(title: "A", color: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 1)))
+        let incomingPhoto = ImageSource.data(photoData(title: "A", color: UIColor(red: 0.74, green: 0.66, blue: 0.56, alpha: 1)))
         return [
             Message(id: "m-01", senderID: them, sentAt: at(28 * 60), kind: .system("Messages are end-to-end encrypted."), isOutgoing: false),
             Message(id: "m-02", senderID: them, sentAt: at(26 * 60), kind: .text("You make it home okay?", preview: nil), isOutgoing: false),
@@ -339,8 +339,37 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             Message(id: "m-17", senderID: them, sentAt: at(14), kind: .text("I'll grab the window table.", preview: nil), isOutgoing: false),
             Message(id: "m-18", senderID: them, sentAt: at(8), kind: .text("Don't forget the keys this time.", preview: nil), isOutgoing: false),
             Message(id: "m-19", senderID: me, sentAt: at(4), kind: .text("Already in my pocket.", preview: nil), delivery: .read, isOutgoing: true),
-            Message(id: "m-20", senderID: them, sentAt: at(2), kind: .text("See you there.", preview: nil), reactions: [Reaction(emoji: "👍", userIDs: [me])], isOutgoing: false)
+            Message(id: "m-20", senderID: them, sentAt: at(2), kind: .text("See you there.", preview: nil), isOutgoing: false),
+            Message(
+                id: "m-21",
+                senderID: them,
+                sentAt: at(1),
+                kind: .image(Media(source: incomingPhoto, width: 720, height: 960)),
+                reactions: [Reaction(emoji: "👍", userIDs: [me])],
+                isOutgoing: false
+            )
         ]
+    }
+
+    /// Full-bleed bitmap for chat photos. No rounded plate in the pixels — the bubble clips.
+    static func photoData(title: String, color: UIColor) -> Data {
+        let size = CGSize(width: 720, height: 960)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { ctx in
+            color.setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 220, weight: .bold),
+                .foregroundColor: UIColor.white.withAlphaComponent(0.92)
+            ]
+            let text = title as NSString
+            let textSize = text.size(withAttributes: attributes)
+            text.draw(
+                at: CGPoint(x: (size.width - textSize.width) / 2, y: (size.height - textSize.height) / 2),
+                withAttributes: attributes
+            )
+        }
+        return image.pngData() ?? Data()
     }
 
     static func glyphData(title: String, color: UIColor) -> Data {

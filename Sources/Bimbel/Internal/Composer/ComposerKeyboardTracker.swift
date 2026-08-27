@@ -6,10 +6,12 @@ import UIKit
 /// the view controller's `inputAccessoryView` (keyboard window). When hidden it
 /// is docked in the conversation VC at the safe-area bottom.
 ///
-/// Insets come from `keyboardLayoutGuide` / keyboard frame notifications while
-/// the composer is in the accessory (that frame already includes the accessory —
-/// do not add composer height on top). While docked, the inset is the composer
-/// height plus the home-indicator safe area.
+/// Insets come from the top of the **composer** (docked or in the accessory)
+/// so the last bubble clears the floating bar. The keyboard frame is used as
+/// a second covering edge; do not add keyboard height + composer height when
+/// the frame already includes the accessory. A self-sizing accessory often
+/// sits *above* a keys-only keyboard frame — that case still adds composer
+/// height. While docked, the inset is composer height + home-indicator + gap.
 ///
 /// `flushingLayout` may only be true outside collection view callbacks. Forcing a
 /// layout pass from `scrollViewDidScroll` or `viewDidLayoutSubviews` runs while
@@ -56,6 +58,7 @@ final class ComposerKeyboardTracker {
             isComposerInAccessory: isComposerInAccessory,
             keyboardTop: keyboardTop(in: collectionView, host: host),
             collectionMaxY: collectionView.bounds.maxY,
+            composerTopInCollection: composerTopInCollection(),
             dockedComposerHeight: dockedComposerHeight(),
             safeAreaBottom: host.safeAreaInsets.bottom,
             breathing: bottomBreathingRoom
@@ -70,26 +73,44 @@ final class ComposerKeyboardTracker {
     }
 
     /// Pure overlap math so docked vs accessory insets can be tested without UIKit layout.
+    ///
+    /// Keyboard visible: cover from the higher of (keyboard top, composer top).
+    /// If the keyboard frame is keys-only, composer top is above it and that
+    /// extra composer height is included once — never keyboard + composer twice.
     static func overlap(
         isComposerInAccessory: Bool,
         keyboardTop: CGFloat,
         collectionMaxY: CGFloat,
+        composerTopInCollection: CGFloat?,
         dockedComposerHeight: CGFloat,
         safeAreaBottom: CGFloat,
         breathing: CGFloat
     ) -> CGFloat {
-        let base: CGFloat
+        let composerH = dockedComposerHeight > 1 ? dockedComposerHeight : 58
         if isComposerInAccessory {
-            base = max(0, collectionMaxY - keyboardTop)
-        } else {
-            let height = dockedComposerHeight > 1 ? dockedComposerHeight : 58
-            base = height + safeAreaBottom
+            let coveringTop: CGFloat
+            if let composerTop = composerTopInCollection {
+                coveringTop = min(keyboardTop, composerTop)
+            } else {
+                coveringTop = keyboardTop - composerH
+            }
+            return max(composerH, collectionMaxY - coveringTop) + breathing
         }
-        return base + breathing
+        if let composerTop = composerTopInCollection {
+            return max(0, collectionMaxY - composerTop) + breathing
+        }
+        return composerH + safeAreaBottom + breathing
     }
 
     private func dockedComposerHeight() -> CGFloat {
         composer?.bounds.height ?? 0
+    }
+
+    private func composerTopInCollection() -> CGFloat? {
+        guard let composer, let collectionView, composer.bounds.height > 1 else { return nil }
+        let rect = composer.convert(composer.bounds, to: collectionView)
+        guard rect.height > 1, rect.minY.isFinite else { return nil }
+        return rect.minY
     }
 
     private func keyboardTop(in collectionView: UICollectionView, host: UIView) -> CGFloat {

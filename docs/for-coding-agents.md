@@ -45,7 +45,7 @@ See README → Keyboard. The conversation VC’s `inputAccessoryView` hosts the 
 
 Ship at least two looks in any demo: `ConversationTheme.default` and `ConversationTheme.blue`. Inbox and thread share the tokens.
 
-Header glass: Liquid Glass on iOS 26 (`UIGlassEffect` if present), otherwise `.systemUltraThinMaterial`.
+Header glass: Liquid Glass on iOS 26 (`UIGlassEffect` if present), otherwise `.systemChromeMaterial` (neutral, no mint tint).
 
 ## Sample
 

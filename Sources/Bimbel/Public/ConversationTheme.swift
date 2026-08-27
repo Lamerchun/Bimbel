@@ -127,8 +127,8 @@ public struct ConversationTheme: Sendable {
         public static let bimbel = Colors(
             wallpaper: UIColor { tc in
                 tc.userInterfaceStyle == .dark
-                    ? UIColor(red: 0.07, green: 0.08, blue: 0.08, alpha: 1)
-                    : UIColor(red: 0.93, green: 0.91, blue: 0.88, alpha: 1)
+                    ? UIColor(red: 11 / 255, green: 11 / 255, blue: 11 / 255, alpha: 1) // #0B0B0B
+                    : UIColor(red: 240 / 255, green: 235 / 255, blue: 228 / 255, alpha: 1) // #F0EBE4
             },
             outgoingBubble: UIColor { tc in
                 tc.userInterfaceStyle == .dark
@@ -286,7 +286,7 @@ public struct ConversationTheme: Sendable {
         public var usesLiquidGlassWhenAvailable: Bool
 
         public init(
-            headerBlurStyle: UIBlurEffect.Style = .systemUltraThinMaterial,
+            headerBlurStyle: UIBlurEffect.Style = .systemChromeMaterial,
             usesLiquidGlassWhenAvailable: Bool = true
         ) {
             self.headerBlurStyle = headerBlurStyle

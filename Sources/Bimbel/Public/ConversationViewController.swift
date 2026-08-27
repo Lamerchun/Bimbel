@@ -141,7 +141,7 @@ open class ConversationViewController: UIViewController {
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.composerGap,
             left: 0,
-            bottom: theme.layout.composerGap + 4,
+            bottom: theme.layout.composerGap,
             right: 0
         )
 
@@ -347,7 +347,7 @@ open class ConversationViewController: UIViewController {
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.composerGap,
             left: 0,
-            bottom: theme.layout.composerGap + 4,
+            bottom: theme.layout.composerGap,
             right: 0
         )
         keyboardTracker.bottomBreathingRoom = theme.layout.composerGap
@@ -536,7 +536,7 @@ extension ConversationViewController: ChatLayoutDelegate {
         guard indexPath.item < rows.count else { return .fullWidth }
         switch rows[indexPath.item] {
         case .date, .unread:
-            return .fullWidth
+            return .center
         case .message(let message, _):
             if case .system = message.kind { return .center }
             return message.isOutgoing ? .trailing : .leading

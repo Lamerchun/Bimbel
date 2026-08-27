@@ -20,16 +20,16 @@ final class MessageCollectionCell: UICollectionViewCell {
     private let reactions = ReactionChipsView()
     private let paddedBody = UIStackView()
     private let innerColumn = UIStackView()
+    private let bubbleColumn = UIStackView()
     private let hStack = UIStackView()
     private var current: Message?
     private var theme = ConversationTheme.default
     private var swipeOffset: CGFloat = 0
     private var replyTriggered = false
     private var overlayMetadataConstraints: [NSLayoutConstraint] = []
-    private var reactionsTop: NSLayoutConstraint!
-    private var reactionsLeading: NSLayoutConstraint!
-    private var reactionsTrailing: NSLayoutConstraint!
-    private var reactionsHeightZero: NSLayoutConstraint!
+    private var bubbleWidth: NSLayoutConstraint!
+    private var leadingAlign: NSLayoutConstraint!
+    private var trailingAlign: NSLayoutConstraint!
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -41,6 +41,8 @@ final class MessageCollectionCell: UICollectionViewCell {
     private func setup() {
         contentView.backgroundColor = .clear
         backgroundColor = .clear
+        clipsToBounds = false
+        contentView.clipsToBounds = false
 
         avatarView.contentMode = .scaleAspectFill
         avatarView.layer.masksToBounds = true
@@ -49,6 +51,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         textLabel.numberOfLines = 0
         mediaView.isUserInteractionEnabled = true
         mediaView.layer.masksToBounds = true
+        mediaView.layer.cornerRadius = 0
 
         paddedBody.axis = .vertical
         paddedBody.spacing = 4
@@ -90,20 +93,20 @@ final class MessageCollectionCell: UICollectionViewCell {
         NSLayoutConstraint.activate(overlayMetadataConstraints)
         overlayMetadata.isHidden = true
 
+        // Reaction chip sits UNDER the bubble, never on the media corner.
+        bubbleColumn.axis = .vertical
+        bubbleColumn.spacing = 4
+        bubbleColumn.alignment = .fill
+        bubbleColumn.addArrangedSubview(bubble)
+        bubbleColumn.addArrangedSubview(reactions)
+
         hStack.axis = .horizontal
         hStack.alignment = .top
         hStack.spacing = 6
         hStack.addArrangedSubview(avatarView)
-        hStack.addArrangedSubview(bubble)
+        hStack.addArrangedSubview(bubbleColumn)
         contentView.addSubview(hStack)
         hStack.translatesAutoresizingMaskIntoConstraints = false
-
-        reactions.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(reactions)
-        reactionsTop = reactions.topAnchor.constraint(equalTo: bubble.bottomAnchor, constant: 4)
-        reactionsLeading = reactions.leadingAnchor.constraint(equalTo: bubble.leadingAnchor)
-        reactionsTrailing = reactions.trailingAnchor.constraint(equalTo: bubble.trailingAnchor)
-        reactionsHeightZero = reactions.heightAnchor.constraint(equalToConstant: 0)
 
         NSLayoutConstraint.activate([
             avatarView.widthAnchor.constraint(equalToConstant: 28),
@@ -111,8 +114,7 @@ final class MessageCollectionCell: UICollectionViewCell {
             hStack.topAnchor.constraint(equalTo: contentView.topAnchor),
             hStack.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 8),
             hStack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -8),
-            reactionsTop,
-            reactions.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
+            hStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
         leadingAlign = hStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8)
         trailingAlign = hStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8)
@@ -126,10 +128,6 @@ final class MessageCollectionCell: UICollectionViewCell {
         bubble.isUserInteractionEnabled = true
         linkCard.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openLink)))
     }
-
-    private var leadingAlign: NSLayoutConstraint!
-    private var trailingAlign: NSLayoutConstraint!
-    private var bubbleWidth: NSLayoutConstraint!
 
     func configure(
         message: Message,
@@ -148,8 +146,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         leadingAlign.isActive = !outgoing
         trailingAlign.isActive = outgoing
         hStack.semanticContentAttribute = outgoing ? .forceRightToLeft : .forceLeftToRight
-        reactionsLeading.isActive = !outgoing
-        reactionsTrailing.isActive = outgoing
+        bubbleColumn.alignment = outgoing ? .trailing : .leading
 
         avatarView.isHidden = outgoing || !decoration.reservesIncomingAvatarGutter
         avatarView.alpha = decoration.showsIncomingAvatar ? 1 : 0
@@ -174,9 +171,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         textLabel.font = theme.fonts.body
         textLabel.textColor = textColor
         reactions.configure(reactions: message.reactions, theme: theme)
-        let hasReactions = !message.reactions.isEmpty
-        reactionsTop.constant = hasReactions ? 4 : 0
-        reactionsHeightZero.isActive = !hasReactions
+        reactions.isHidden = message.reactions.isEmpty
 
         textLabel.isHidden = true
         mediaView.isHidden = true
@@ -195,13 +190,11 @@ final class MessageCollectionCell: UICollectionViewCell {
             }
         case .image(let media):
             mediaView.isHidden = false
-            configureMedia(media, fill: bubble.fillColor)
-            applyCaption(media.caption)
+            configureMedia(media)
         case .video(let media):
             mediaView.isHidden = false
             playBadge.isHidden = false
-            configureMedia(media, fill: bubble.fillColor)
-            applyCaption(media.caption)
+            configureMedia(media)
         case .voice(let voice):
             voiceView.isHidden = false
             voiceView.configure(voice, theme: theme)
@@ -218,6 +211,9 @@ final class MessageCollectionCell: UICollectionViewCell {
         paddedBody.isHidden = mediaOnly
         overlayMetadata.isHidden = !mediaOnly
         if mediaOnly {
+            // Bitmap is the bubble — no incoming/outgoing fill plate around the photo.
+            bubble.fillColor = .clear
+            bubble.setNeedsDisplay()
             overlayMetadata.configure(message: message, theme: theme, onMedia: true)
         } else {
             metadata.configure(message: message, theme: theme, onMedia: false)
@@ -228,18 +224,12 @@ final class MessageCollectionCell: UICollectionViewCell {
                 right: 10
             )
         }
-        // Image fills the bubble silhouette; bubble path masks rounding (including media stacks).
         mediaView.layer.cornerRadius = 0
     }
 
-    private func applyCaption(_ caption: String?) {
-        guard let caption, !caption.isEmpty else { return }
-        textLabel.isHidden = false
-        textLabel.text = caption
-    }
-
-    private func configureMedia(_ media: Media, fill: UIColor) {
-        mediaView.backgroundColor = fill
+    private func configureMedia(_ media: Media) {
+        mediaView.backgroundColor = .clear
+        mediaView.setAspect(width: media.width, height: media.height)
         mediaView.image = ImageLoader.image(from: media.source)
         ImageLoader.load(media.source) { [weak self] image in self?.mediaView.image = image }
     }

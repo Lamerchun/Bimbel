@@ -65,7 +65,7 @@ enum MessageGrouping {
         from snapshot: ConversationSnapshot,
         calendar: Calendar = .current
     ) -> [ChatRow] {
-        let messages = snapshot.messages.filter { !$0.id.isEmpty }
+        let messages = expandCaptions(snapshot.messages.filter { !$0.id.isEmpty })
         guard !messages.isEmpty else { return [] }
 
         var decorated: [(Message, MessageDecoration)] = messages.map { ($0, .standalone) }
@@ -181,5 +181,52 @@ enum MessageGrouping {
     private static func shouldJoinMediaStack(_ a: Message, _ b: Message) -> Bool {
         // Join when at least one of the pair is media/link. Plain-text + plain-text stays unjoined.
         isMediaLike(a) || isMediaLike(b)
+    }
+
+    /// Captions are a following text bubble in the media stack, never a footer on the image.
+    static func expandCaptions(_ messages: [Message]) -> [Message] {
+        var expanded: [Message] = []
+        expanded.reserveCapacity(messages.count)
+        for message in messages {
+            switch message.kind {
+            case .image(var media) where caption(media.caption) != nil:
+                let text = caption(media.caption)!
+                media.caption = nil
+                var image = message
+                image.kind = .image(media)
+                expanded.append(image)
+                expanded.append(captionMessage(from: message, text: text))
+            case .video(var media) where caption(media.caption) != nil:
+                let text = caption(media.caption)!
+                media.caption = nil
+                var video = message
+                video.kind = .video(media)
+                expanded.append(video)
+                expanded.append(captionMessage(from: message, text: text))
+            default:
+                expanded.append(message)
+            }
+        }
+        return expanded
+    }
+
+    private static func caption(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func captionMessage(from message: Message, text: String) -> Message {
+        Message(
+            id: "\(message.id)#caption",
+            senderID: message.senderID,
+            sentAt: message.sentAt,
+            kind: .text(text, preview: nil),
+            replyTo: message.replyTo,
+            reactions: [],
+            delivery: message.delivery,
+            isEdited: message.isEdited,
+            isOutgoing: message.isOutgoing
+        )
     }
 }

@@ -95,27 +95,32 @@ final class BubbleBackgroundView: UIView {
 final class MetadataOverlay: UIView {
     let timeLabel = UILabel()
     let accessoryView = UIImageView()
+    private let stack = UIStackView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
+        layer.cornerRadius = 8
+        layer.masksToBounds = true
         timeLabel.font = .systemFont(ofSize: 11, weight: .regular)
         accessoryView.contentMode = .scaleAspectFit
-        let stack = UIStackView(arrangedSubviews: [timeLabel, accessoryView])
         stack.axis = .horizontal
         stack.spacing = 2
         stack.alignment = .center
+        stack.isLayoutMarginsRelativeArrangement = true
         addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            accessoryView.widthAnchor.constraint(equalToConstant: 18),
+            accessoryView.widthAnchor.constraint(equalToConstant: 20),
             accessoryView.heightAnchor.constraint(equalToConstant: 12)
         ])
+        stack.addArrangedSubview(timeLabel)
+        stack.addArrangedSubview(accessoryView)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -125,25 +130,25 @@ final class MetadataOverlay: UIView {
         timeLabel.font = theme.fonts.metadata
         if onMedia {
             timeLabel.textColor = .white
-            timeLabel.layer.shadowColor = UIColor.black.cgColor
-            timeLabel.layer.shadowOpacity = 0.45
-            timeLabel.layer.shadowRadius = 2
-            timeLabel.layer.shadowOffset = CGSize(width: 0, height: 1)
+            backgroundColor = UIColor.black.withAlphaComponent(0.45)
+            stack.layoutMargins = UIEdgeInsets(top: 3, left: 6, bottom: 3, right: 6)
         } else {
             timeLabel.textColor = theme.colors.metadata
-            timeLabel.layer.shadowOpacity = 0
+            backgroundColor = .clear
+            stack.layoutMargins = .zero
         }
-        applyAccessory(message: message, theme: theme, onMedia: onMedia)
+        applyAccessory(message: message, theme: theme)
     }
 
     func prepareForReuse() {
         accessoryView.isHidden = true
         accessoryView.image = nil
-        timeLabel.layer.shadowOpacity = 0
+        backgroundColor = .clear
+        stack.layoutMargins = .zero
     }
 
     /// Delivery ticks belong on outgoing bubbles only — including failed.
-    private func applyAccessory(message: Message, theme: ConversationTheme, onMedia: Bool) {
+    private func applyAccessory(message: Message, theme: ConversationTheme) {
         guard message.isOutgoing else {
             accessoryView.isHidden = true
             accessoryView.image = nil
@@ -158,7 +163,7 @@ final class MetadataOverlay: UIView {
         accessoryView.isHidden = theme.deliveryAccessory == .hidden
         accessoryView.tintColor = message.delivery == .read
             ? theme.colors.accent
-            : (onMedia ? .white : theme.colors.metadata)
+            : theme.colors.metadata
         switch theme.deliveryAccessory {
         case .hidden:
             accessoryView.image = nil
@@ -272,13 +277,30 @@ final class LinkPreviewCard: UIView {
 }
 
 final class MediaImageView: UIImageView {
+    private var aspect: NSLayoutConstraint!
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentMode = .scaleAspectFill
         clipsToBounds = true
         backgroundColor = .clear
-        heightAnchor.constraint(equalTo: widthAnchor, multiplier: 0.85).isActive = true
+        aspect = heightAnchor.constraint(equalTo: widthAnchor, multiplier: 1.25)
+        aspect.priority = .required
+        aspect.isActive = true
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func setAspect(width: Int?, height: Int?) {
+        let multiplier: CGFloat
+        if let width, let height, width > 0, height > 0 {
+            multiplier = min(1.45, max(0.62, CGFloat(height) / CGFloat(width)))
+        } else {
+            multiplier = 1.25
+        }
+        aspect.isActive = false
+        aspect = heightAnchor.constraint(equalTo: widthAnchor, multiplier: multiplier)
+        aspect.priority = .required
+        aspect.isActive = true
+    }
 }

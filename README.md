@@ -69,7 +69,7 @@ The conversation VC owns the accessory. ChatLayout is not given `additionalSafeA
 2. Keyboard hidden: the **same** composer instance is docked in the conversation VC at the safe-area bottom (wallpaper shows through).
 3. Keyboard visible: that instance is reparented into the VC’s `inputAccessoryView` (a clear container). The text view lives inside the composer; its `inputAccessoryView` is the **container**, never the composer.
 4. `collectionView.keyboardDismissMode = .interactiveWithAccessory` so drag-to-dismiss starts at the composer, not the keys.
-5. List `contentInset.bottom` has one owner: keyboard frame / `keyboardLayoutGuide` while the composer is in the accessory (do not add keyboard height + composer height). Docked, the inset is composer height + safe area.
+5. List `contentInset.bottom` has one owner: the top of the composer (docked or accessory) plus gap. When the keyboard is visible, that covering already includes the accessory — do not add keyboard height + composer height. A keys-only keyboard frame still adds composer height so the last bubble clears the floating bar.
 6. Attach sheet is the text view’s `inputView`. Voice-lock and the attach sheet disable the dismiss pan.
 
 Do not pin the composer to `keyboardLayoutGuide`. Do not use IBAV `KeyboardManager` as the position owner.
@@ -78,7 +78,7 @@ Do not pin the composer to `keyboardLayoutGuide`. Do not use IBAV `KeyboardManag
 
 `ConversationTheme.default` nods at mint/teal. `ConversationTheme.blue` is the foreign accent in the sample (tap the inbox title or a conversation title). Delivery accessories are `.ticks`, `.dot`, or `.hidden` — ticks are not hard-coded.
 
-Header glass uses Liquid Glass when `UIGlassEffect` exists at runtime (iOS 26). iOS 17/18 fall back to `.systemUltraThinMaterial`. Wallpaper is a quiet doodle tiled over the theme wash (`Resources/wallpaper.pdf`).
+Header glass uses Liquid Glass when `UIGlassEffect` exists at runtime (iOS 26). iOS 17/18 fall back to `.systemChromeMaterial` (neutral, no mint tint). Wallpaper is the bundled doodle tile (`wallpaper-bimbel-light` / `wallpaper-bimbel-dark`). Delivery ticks are the overlapping `delivery-double-tick` template glyph, never SF `checkmark.circle`.
 
 ## Sponsors
 

@@ -2,7 +2,7 @@ import UIKit
 
 enum MaterialFactory {
     /// iOS 26 Liquid Glass when `UIGlassEffect` exists at runtime.
-    /// iOS 17/18 fallback is `UIBlurEffect.Style.systemUltraThinMaterial`.
+    /// iOS 17/18 fallback is neutral chrome — never a mint-tinted ultraThin overlay.
     static func makeHeaderEffectView(theme: ConversationTheme) -> UIVisualEffectView {
         if theme.materials.usesLiquidGlassWhenAvailable, let glass = makeLiquidGlassEffect() {
             return NonInteractiveEffectView(effect: glass)
@@ -167,23 +167,67 @@ final class HitTargetButton: UIButton {
 }
 
 enum DeliveryTicks {
+    /// Thang's overlapping double-tick. Never SF `checkmark.circle`.
     static func image(for state: DeliveryState) -> UIImage? {
         switch state {
         case .sending:
             return UIImage(systemName: "clock")
         case .sent:
-            return BundleImage.template("ticks-sent")
+            return templateTicks(double: false)
         case .delivered, .read:
-            return BundleImage.template("ticks-delivered")
+            return templateTicks(double: true)
         case .failed:
             return UIImage(systemName: "exclamationmark.circle.fill")
         }
     }
+
+    private static func templateTicks(double: Bool) -> UIImage {
+        let name = double ? "delivery-double-tick" : "delivery-single-tick"
+        if let image = BundleImage.template(name) { return image }
+        return drawn(double: double)
+    }
+
+    /// SVG paths (`delivery-double-tick.svg`) so missing catalog assets still cannot fall back to SF checks.
+    private static func drawn(double: Bool) -> UIImage {
+        let size = CGSize(width: double ? 20 : 12, height: 12)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = UIScreen.main.scale
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            func stroke(_ points: [CGPoint]) {
+                let path = UIBezierPath()
+                path.lineWidth = 1.7
+                path.lineCapStyle = .round
+                path.lineJoinStyle = .round
+                path.move(to: points[0])
+                points.dropFirst().forEach { path.addLine(to: $0) }
+                UIColor.black.setStroke()
+                path.stroke()
+            }
+            stroke([CGPoint(x: 1.2, y: 6.6), CGPoint(x: 4.2, y: 9.4), CGPoint(x: 10.6, y: 2.4)])
+            if double {
+                stroke([CGPoint(x: 6.6, y: 6.6), CGPoint(x: 9.6, y: 9.4), CGPoint(x: 16.2, y: 2.4)])
+            }
+        }
+        return image.withRenderingMode(.alwaysTemplate)
+    }
 }
 
 enum BundleImage {
+    static func named(_ name: String) -> UIImage? {
+        if let image = UIImage(named: name, in: .module, compatibleWith: nil) {
+            return image
+        }
+        if let url = Bundle.module.url(forResource: name, withExtension: "png"),
+           let image = UIImage(contentsOfFile: url.path)
+        {
+            return image
+        }
+        return pdf(name)
+    }
+
     static func template(_ name: String) -> UIImage? {
-        pdf(name)?.withRenderingMode(.alwaysTemplate)
+        named(name)?.withRenderingMode(.alwaysTemplate)
     }
 
     static func pdf(_ name: String) -> UIImage? {
@@ -204,22 +248,13 @@ enum BundleImage {
 enum DoodleWallpaper {
     static func color(base: UIColor) -> UIColor {
         UIColor { traits in
-            let resolved = base.resolvedColor(with: traits)
-            let dark = traits.userInterfaceStyle == .dark
-            return UIColor(patternImage: tile(base: resolved, dark: dark))
-        }
-    }
-
-    private static func tile(base: UIColor, dark: Bool) -> UIImage {
-        let size = CGSize(width: 240, height: 240)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { ctx in
-            base.setFill()
-            ctx.fill(CGRect(origin: .zero, size: size))
-            guard let doodle = BundleImage.pdf("wallpaper") else { return }
-            let tint = (dark ? UIColor.white : UIColor.black).withAlphaComponent(dark ? 0.07 : 0.06)
-            doodle.withTintColor(tint, renderingMode: .alwaysOriginal)
-                .draw(in: CGRect(origin: .zero, size: size))
+            let name = traits.userInterfaceStyle == .dark
+                ? "wallpaper-bimbel-dark"
+                : "wallpaper-bimbel-light"
+            if let image = BundleImage.named(name) {
+                return UIColor(patternImage: image)
+            }
+            return base.resolvedColor(with: traits)
         }
     }
 }

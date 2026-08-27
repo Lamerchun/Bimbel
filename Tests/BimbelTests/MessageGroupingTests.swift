@@ -92,6 +92,32 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(ConversationTheme.default.layout.sequenceGap, 10)
         XCTAssertEqual(ConversationTheme.default.radii.residualTail, 3)
         XCTAssertEqual(ConversationTheme.default.radii.bubble, 22)
+        XCTAssertEqual(ConversationTheme.default.materials.headerBlurStyle, .systemChromeMaterial)
+    }
+
+    func testImageCaptionBecomesFollowingTextInMediaStack() {
+        let photo = message(
+            "1",
+            outgoing: false,
+            kind: .image(Media(source: .data(Data()), caption: "Logo"))
+        )
+        let rows = MessageGrouping.rows(
+            from: ConversationSnapshot(conversationID: "c", messages: [photo])
+        )
+        let kinds = rows.compactMap { row -> String? in
+            guard case .message(let message, _) = row else { return nil }
+            switch message.kind {
+            case .image: return "image"
+            case .text(let body, _): return body
+            default: return nil
+            }
+        }
+        XCTAssertEqual(kinds, ["image", "Logo"])
+        let decorations = rows.compactMap { row -> MessageDecoration? in
+            if case .message(_, let decoration) = row { return decoration }
+            return nil
+        }
+        XCTAssertEqual(decorations.map(\.mediaStack), [.first, .last])
     }
 
     func testDateChipSaysToday() {

@@ -9,6 +9,8 @@ final class DateChipCell: UICollectionViewCell {
         backgroundColor = .clear
         label.textAlignment = .center
         label.layer.masksToBounds = true
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
         contentView.addSubview(label)
         label.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -31,7 +33,8 @@ final class DateChipCell: UICollectionViewCell {
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        attributes.frame.size = CGSize(width: layoutAttributes.frame.width, height: 36)
+        let size = label.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        attributes.frame.size = CGSize(width: ceil(size.width), height: 36)
         return attributes
     }
 }
@@ -43,30 +46,36 @@ final class UnreadSeparatorCell: UICollectionViewCell {
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
+        contentView.backgroundColor = .clear
         label.text = String(localized: "Unread messages")
         label.textAlignment = .center
         label.layer.masksToBounds = true
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
         contentView.addSubview(label)
         label.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
         ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(theme: ConversationTheme) {
+        // Same chip language as the date separator. No accent hairline.
         label.font = theme.fonts.chip
-        label.textColor = theme.colors.headerSubtitle
+        label.textColor = theme.colors.systemChipText
         label.backgroundColor = theme.colors.systemChipFill
         label.layer.cornerRadius = theme.radii.chip
-        label.insets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
+        label.insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
     }
 
     override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
         let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
-        attributes.frame.size = CGSize(width: layoutAttributes.frame.width, height: 28)
+        let size = label.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        attributes.frame.size = CGSize(width: ceil(size.width), height: 36)
         return attributes
     }
 }
