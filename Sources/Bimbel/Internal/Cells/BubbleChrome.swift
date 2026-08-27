@@ -1,0 +1,253 @@
+import UIKit
+
+struct BubbleCorners: Equatable {
+    var topLeft: CGFloat
+    var topRight: CGFloat
+    var bottomLeft: CGFloat
+    var bottomRight: CGFloat
+
+    static func zustandB(
+        outgoing: Bool,
+        decoration: MessageDecoration,
+        radii: ConversationTheme.Radii
+    ) -> BubbleCorners {
+        let full = radii.bubble
+        let join = radii.bubbleJoin
+        let tail = radii.residualTail
+
+        var corners = BubbleCorners(topLeft: full, topRight: full, bottomLeft: full, bottomRight: full)
+
+        if decoration.mediaStack.isStacked {
+            if decoration.mediaStack.joinsTop {
+                corners.topLeft = join
+                corners.topRight = join
+            }
+            if decoration.mediaStack.joinsBottom {
+                corners.bottomLeft = join
+                corners.bottomRight = join
+            } else if outgoing {
+                corners.bottomRight = tail
+            } else {
+                corners.bottomLeft = tail
+            }
+            return corners
+        }
+
+        // Consecutive text keeps full rounding (not iMessage collapse). Residual tail only.
+        if outgoing {
+            corners.bottomRight = decoration.cluster.isLastInCluster ? tail : full
+        } else {
+            corners.bottomLeft = decoration.cluster.isLastInCluster ? tail : full
+        }
+        return corners
+    }
+}
+
+final class BubbleBackgroundView: UIView {
+    var corners = BubbleCorners(topLeft: 22, topRight: 22, bottomLeft: 22, bottomRight: 10) {
+        didSet { setNeedsDisplay() }
+    }
+    var fillColor: UIColor = .white {
+        didSet { setNeedsDisplay() }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isOpaque = false
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func draw(_ rect: CGRect) {
+        fillColor.setFill()
+        path(in: bounds).fill()
+    }
+
+    func path(in rect: CGRect) -> UIBezierPath {
+        let path = UIBezierPath()
+        let c = corners
+        path.move(to: CGPoint(x: rect.minX + c.topLeft, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - c.topRight, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + c.topRight), controlPoint: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - c.bottomRight))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - c.bottomRight, y: rect.maxY), controlPoint: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + c.bottomLeft, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - c.bottomLeft), controlPoint: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + c.topLeft))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + c.topLeft, y: rect.minY), controlPoint: CGPoint(x: rect.minX, y: rect.minY))
+        path.close()
+        return path
+    }
+}
+
+final class MetadataOverlay: UIView {
+    let timeLabel = UILabel()
+    let accessoryView = UIImageView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        timeLabel.font = .systemFont(ofSize: 11, weight: .regular)
+        accessoryView.contentMode = .scaleAspectFit
+        let stack = UIStackView(arrangedSubviews: [timeLabel, accessoryView])
+        stack.axis = .horizontal
+        stack.spacing = 2
+        stack.alignment = .center
+        addSubview(stack)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            accessoryView.widthAnchor.constraint(equalToConstant: 14),
+            accessoryView.heightAnchor.constraint(equalToConstant: 12)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(message: Message, theme: ConversationTheme) {
+        timeLabel.text = BimbelFormatters.messageTime.string(from: message.sentAt)
+        timeLabel.textColor = theme.colors.metadata
+        timeLabel.font = theme.fonts.metadata
+        accessoryView.isHidden = !message.isOutgoing || theme.deliveryAccessory == .hidden
+        accessoryView.tintColor = message.delivery == .read ? theme.colors.accent : theme.colors.metadata
+        switch theme.deliveryAccessory {
+        case .hidden:
+            accessoryView.image = nil
+        case .dot:
+            accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: false))
+        case .ticks:
+            accessoryView.image = UIImage(systemName: symbol(for: message.delivery, ticks: true))
+        }
+        if message.delivery == .failed {
+            accessoryView.image = UIImage(systemName: "exclamationmark.circle.fill")
+            accessoryView.tintColor = .systemRed
+            accessoryView.isHidden = false
+        }
+    }
+
+    private func symbol(for state: DeliveryState, ticks: Bool) -> String {
+        switch state {
+        case .sending: return "clock"
+        case .sent: return ticks ? "checkmark" : "circle.fill"
+        case .delivered: return ticks ? "checkmark.circle" : "circle.fill"
+        case .read: return ticks ? "checkmark.circle.fill" : "circle.fill"
+        case .failed: return "exclamationmark.circle.fill"
+        }
+    }
+}
+
+final class ReactionChipsView: UIView {
+    func configure(reactions: [Reaction], theme: ConversationTheme) {
+        arranged.forEach { $0.removeFromSuperview() }
+        isHidden = reactions.isEmpty
+        for reaction in reactions {
+            let chip = UILabel()
+            chip.font = theme.fonts.chip
+            chip.text = "\(reaction.emoji) \(reaction.userIDs.count)"
+            chip.backgroundColor = theme.colors.reactionFill
+            chip.layer.cornerRadius = 10
+            chip.layer.masksToBounds = true
+            chip.textAlignment = .center
+            let padded = PaddedLabel()
+            padded.text = chip.text
+            padded.font = chip.font
+            padded.backgroundColor = chip.backgroundColor
+            padded.layer.cornerRadius = 10
+            padded.layer.masksToBounds = true
+            padded.insets = UIEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
+            stack.addArrangedSubview(padded)
+            arranged.append(padded)
+        }
+    }
+
+    private let stack = UIStackView()
+    private var arranged: [UIView] = []
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        stack.axis = .horizontal
+        stack.spacing = 4
+        addSubview(stack)
+        stack.bimbelPinToEdges(of: self)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
+final class PaddedLabel: UILabel {
+    var insets = UIEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
+    override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: insets)) }
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width + insets.left + insets.right, height: size.height + insets.top + insets.bottom)
+    }
+}
+
+final class LinkPreviewCard: UIView {
+    private let titleLabel = UILabel()
+    private let summaryLabel = UILabel()
+    private let urlLabel = UILabel()
+    private let thumb = UIImageView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        titleLabel.numberOfLines = 2
+        summaryLabel.numberOfLines = 2
+        urlLabel.numberOfLines = 1
+        thumb.contentMode = .scaleAspectFill
+        thumb.clipsToBounds = true
+        thumb.layer.cornerRadius = 8
+        thumb.translatesAutoresizingMaskIntoConstraints = false
+        let labels = UIStackView(arrangedSubviews: [titleLabel, summaryLabel, urlLabel])
+        labels.axis = .vertical
+        labels.spacing = 2
+        let row = UIStackView(arrangedSubviews: [labels, thumb])
+        row.axis = .horizontal
+        row.spacing = 8
+        row.alignment = .top
+        addSubview(row)
+        row.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            thumb.widthAnchor.constraint(equalToConstant: 52),
+            thumb.heightAnchor.constraint(equalToConstant: 52)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(_ preview: LinkPreview, theme: ConversationTheme, outgoing: Bool) {
+        titleLabel.font = theme.fonts.linkTitle
+        summaryLabel.font = theme.fonts.linkSummary
+        urlLabel.font = theme.fonts.metadata
+        titleLabel.textColor = theme.colors.linkTitle
+        summaryLabel.textColor = outgoing ? theme.colors.outgoingPrimaryText : theme.colors.incomingPrimaryText
+        urlLabel.textColor = theme.colors.metadata
+        titleLabel.text = preview.title ?? preview.siteName ?? preview.url.host
+        summaryLabel.text = preview.summary
+        urlLabel.text = preview.url.host
+        thumb.isHidden = preview.thumbnail == nil
+        if let thumbnail = preview.thumbnail {
+            thumb.image = ImageLoader.image(from: thumbnail)
+            ImageLoader.load(thumbnail) { [weak self] image in self?.thumb.image = image }
+        }
+    }
+}
+
+final class MediaImageView: UIImageView {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentMode = .scaleAspectFill
+        clipsToBounds = true
+        backgroundColor = UIColor.tertiarySystemFill
+        heightAnchor.constraint(equalTo: widthAnchor, multiplier: 0.85).isActive = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}

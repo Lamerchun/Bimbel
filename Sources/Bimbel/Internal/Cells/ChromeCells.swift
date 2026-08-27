@@ -1,0 +1,119 @@
+import UIKit
+
+final class DateChipCell: UICollectionViewCell {
+    static let reuseID = "DateChipCell"
+    private let label = PaddedLabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        label.textAlignment = .center
+        label.layer.masksToBounds = true
+        contentView.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -6)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(date: Date, theme: ConversationTheme) {
+        label.font = theme.fonts.chip
+        label.textColor = theme.colors.systemChipText
+        label.backgroundColor = theme.colors.systemChipFill
+        label.layer.cornerRadius = theme.radii.chip
+        label.insets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        label.text = BimbelFormatters.dateChip.string(from: date)
+    }
+
+    override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
+        attributes.frame.size = CGSize(width: layoutAttributes.frame.width, height: 36)
+        return attributes
+    }
+}
+
+final class UnreadSeparatorCell: UICollectionViewCell {
+    static let reuseID = "UnreadSeparatorCell"
+    private let line = UIView()
+    private let label = PaddedLabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        label.text = "Unread messages"
+        label.textAlignment = .center
+        contentView.addSubview(line)
+        contentView.addSubview(label)
+        line.translatesAutoresizingMaskIntoConstraints = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            line.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            line.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            line.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            line.heightAnchor.constraint(equalToConstant: 1),
+            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(theme: ConversationTheme) {
+        line.backgroundColor = theme.colors.unreadSeparator.withAlphaComponent(0.35)
+        label.font = theme.fonts.chip
+        label.textColor = theme.colors.unreadSeparator
+        label.backgroundColor = theme.colors.wallpaper
+        label.insets = UIEdgeInsets(top: 2, left: 8, bottom: 2, right: 8)
+    }
+
+    override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
+        attributes.frame.size = CGSize(width: layoutAttributes.frame.width, height: 28)
+        return attributes
+    }
+}
+
+final class SystemMessageCell: UICollectionViewCell {
+    static let reuseID = "SystemMessageCell"
+    private let label = PaddedLabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.layer.masksToBounds = true
+        contentView.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            label.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 24),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -24),
+            label.centerXAnchor.constraint(equalTo: contentView.centerXAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(text: String, theme: ConversationTheme) {
+        label.font = theme.fonts.chip
+        label.textColor = theme.colors.systemChipText
+        label.backgroundColor = theme.colors.systemChipFill
+        label.layer.cornerRadius = theme.radii.chip
+        label.insets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        label.text = text
+    }
+
+    override func preferredLayoutAttributesFitting(_ layoutAttributes: UICollectionViewLayoutAttributes) -> UICollectionViewLayoutAttributes {
+        let attributes = super.preferredLayoutAttributesFitting(layoutAttributes)
+        let target = CGSize(width: layoutAttributes.frame.width, height: UIView.layoutFittingCompressedSize.height)
+        let size = contentView.systemLayoutSizeFitting(target, withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
+        attributes.frame.size = CGSize(width: layoutAttributes.frame.width, height: max(32, ceil(size.height)))
+        return attributes
+    }
+}
