@@ -20,6 +20,12 @@ Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), 
 
 Nächster sichtbarer Schritt: Package-Skelett, Sample-App, erste Screenshots.
 
+## Sponsors
+
+[![Sponsor](https://img.shields.io/github/sponsors/Lamerchun?label=Sponsor)](https://github.com/sponsors/Lamerchun)
+
+Logo-Sponsoren, sobald es welche gibt.
+
 ## Screenshots
 
 Noch keine. Mocks und Simulator-Aufnahmen: `docs/screenshots/`
