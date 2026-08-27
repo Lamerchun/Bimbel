@@ -1,10 +1,8 @@
 # Bimbel
 
-The native iOS chat component people have been waiting for. Conversation list + thread, Swift.
+Native iOS chat component (conversation list + conversation). Sample app included. Drop-in for apps and coding agents.
 
-Bimbel ist keine Chat-App. Es ist die native iOS-Komponente für die Übersicht der Unterhaltungen und den Chat selbst: smooth, native, sexy. Eine minimale Sample-App im Repo bindet sie ein, für Tests und damit man etwas sieht.
-
-Drop-in für Coding-Agenten: Swift Package, `ConversationView` plus `apply(snapshot)`, Beispielcode. Default-Theme heißt Bimbel. Die Sample-App nutzt den Accent Blue, damit niemand das Theme einfach durchreicht.
+Bimbel is a native iOS chat component for the conversation list and the conversation itself. Not a full chat app. The sample app is there to embed, test, and so coding agents can drop it in. Default theme is Bimbel. Sample accent is Blue.
 
 ## Stand der Dinge
 
