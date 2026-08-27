@@ -25,6 +25,8 @@ final class ComposerKeyboardTracker {
     private var lastInset: CGFloat = -1
 
     var additionalBottomConstant: () -> CGFloat = { 0 }
+    /// Extra space so the last bubble sits fully above the composer, not flush against it.
+    var bottomBreathingRoom: CGFloat = 8
 
     func attach(composer: UIView, collectionView: UICollectionView) {
         self.composer = composer
@@ -54,7 +56,12 @@ final class ComposerKeyboardTracker {
             composer.superview?.layoutIfNeeded()
         }
         let frame = composer.convert(composer.bounds, to: collectionView)
-        let overlap = max(0, collectionView.bounds.maxY - frame.minY)
+        var overlap = max(0, collectionView.bounds.maxY - frame.minY)
+        if overlap < 8 {
+            let measured = composer.bounds.height
+            overlap = (measured > 1 ? measured : 58) + collectionView.safeAreaInsets.bottom
+        }
+        overlap += bottomBreathingRoom
         guard abs(overlap - lastInset) > 0.5 else { return }
         lastInset = overlap
         var inset = collectionView.contentInset

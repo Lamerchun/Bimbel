@@ -38,7 +38,7 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(decorations.map(\.cluster), [.first, .last])
     }
 
-    func testIncomingAvatarOnlyAtClusterEnd() {
+    func testIncomingAvatarHiddenInOneToOne() {
         let a = message("1", outgoing: false, kind: .text("hi", preview: nil))
         let b = message("2", outgoing: false, kind: .text("there", preview: nil))
         let rows = MessageGrouping.rows(
@@ -48,7 +48,21 @@ final class MessageGroupingTests: XCTestCase {
             if case .message(_, let decoration) = row { return decoration }
             return nil
         }
-        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, true])
+        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, false])
+    }
+
+    func testIncomingAvatarOnlyAtGroupSequenceEnd() {
+        let a = message("1", outgoing: false, kind: .text("hi", preview: nil), senderID: "ada")
+        let b = message("2", outgoing: false, kind: .text("there", preview: nil), senderID: "ada")
+        let c = message("3", outgoing: false, kind: .text("hey", preview: nil), senderID: "mira")
+        let rows = MessageGrouping.rows(
+            from: ConversationSnapshot(conversationID: "c", messages: [a, b, c])
+        )
+        let decorations = rows.compactMap { row -> MessageDecoration? in
+            if case .message(_, let decoration) = row { return decoration }
+            return nil
+        }
+        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, true, true])
     }
 
     func testSystemRowsAreNotClustered() {
@@ -60,6 +74,11 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(rows.count, 3) // date + system + text
     }
 
+    func testGroupingSpacingTokens() {
+        XCTAssertEqual(ConversationTheme.default.layout.clusterGap, 3)
+        XCTAssertEqual(ConversationTheme.default.layout.sequenceGap, 10)
+    }
+
     func testBadgeFormatter() {
         XCTAssertNil(BimbelFormatters.badgeText(nil))
         XCTAssertNil(BimbelFormatters.badgeText(0))
@@ -67,10 +86,10 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(BimbelFormatters.badgeText(100), "99+")
     }
 
-    private func message(_ id: String, outgoing: Bool, kind: MessageKind) -> Message {
+    private func message(_ id: String, outgoing: Bool, kind: MessageKind, senderID: String? = nil) -> Message {
         Message(
             id: id,
-            senderID: outgoing ? me : them,
+            senderID: senderID ?? (outgoing ? me : them),
             sentAt: day,
             kind: kind,
             isOutgoing: outgoing

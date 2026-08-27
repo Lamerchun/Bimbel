@@ -2,69 +2,138 @@ import Bimbel
 import CoreLocation
 import UIKit
 
-/// Hosts `ConversationViewController` so coding agents can see a drop-in.
-/// Tap the header title to switch Default ↔ Blue.
+/// Sample launches on the inbox. Tap a row to push `ConversationViewController`.
+/// Tap the large inbox title (or a conversation title) to switch Default ↔ Blue.
 final class SampleHostViewController: UIViewController {
     private let store = FakeConversationDataSource()
-    private var conversation: ConversationViewController!
+    private let nav = UINavigationController()
+    private var inbox: InboxViewController!
+    private var conversation: ConversationViewController?
     private var usingBlue = false
+
+    private var theme: ConversationTheme { usingBlue ? .blue : .default }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        embed(theme: .default)
+        nav.setNavigationBarHidden(true, animated: false)
+        nav.navigationBar.isTranslucent = true
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.shadowColor = nil
+        appearance.backgroundColor = .clear
+        appearance.backgroundEffect = nil
+        nav.navigationBar.standardAppearance = appearance
+        nav.navigationBar.scrollEdgeAppearance = appearance
+        nav.interactivePopGestureRecognizer?.isEnabled = true
+        addChild(nav)
+        view.addSubview(nav.view)
+        nav.view.frame = view.bounds
+        nav.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        nav.didMove(toParent: self)
+        showInbox()
     }
 
-    private func embed(theme: ConversationTheme) {
-        if let conversation {
-            conversation.willMove(toParent: nil)
-            conversation.view.removeFromSuperview()
-            conversation.removeFromParent()
-        }
-        let controller = ConversationViewController(
-            conversationID: store.conversationID,
+    private func showInbox() {
+        let controller = InboxViewController(
             dataSource: store,
             theme: theme,
-            header: store.header(isTyping: store.isTyping),
-            actions: actions()
+            title: String(localized: "Chats"),
+            actions: inboxActions()
         )
-        addChild(controller)
-        view.addSubview(controller.view)
-        controller.view.frame = view.bounds
-        controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        controller.didMove(toParent: self)
-        conversation = controller
+        inbox = controller
+        nav.setViewControllers([controller], animated: false)
+        conversation = nil
     }
 
-    private func actions() -> ConversationActions {
+    private func openConversation(_ id: ConversationID) {
+        let controller = ConversationViewController(
+            conversationID: id,
+            dataSource: store,
+            theme: theme,
+            header: store.header(for: id),
+            actions: conversationActions(for: id)
+        )
+        conversation = controller
+        nav.pushViewController(controller, animated: true)
+    }
+
+    private func applyTheme() {
+        inbox.theme = theme
+        conversation?.theme = theme
+        if let conversation {
+            conversation.header = store.header(for: conversation.conversationID)
+        }
+    }
+
+    private func refreshInbox() {
+        inbox.apply(store.snapshot(), animatingDifferences: true)
+    }
+
+    private func inboxActions() -> InboxActions {
+        InboxActions(
+            onOpen: { [weak self] id in
+                self?.store.markRead(id)
+                self?.refreshInbox()
+                self?.openConversation(id)
+            },
+            onPin: { [weak self] id in
+                self?.store.togglePin(id)
+                self?.refreshInbox()
+            },
+            onMute: { [weak self] id in
+                self?.store.toggleMute(id)
+                self?.refreshInbox()
+            },
+            onDelete: { [weak self] id in
+                self?.store.delete(id)
+                self?.refreshInbox()
+            },
+            onTitleTap: { [weak self] in
+                guard let self else { return }
+                self.usingBlue.toggle()
+                self.applyTheme()
+            }
+        )
+    }
+
+    private func conversationActions(for id: ConversationID) -> ConversationActions {
         ConversationActions(
             onBack: { [weak self] in
-                self?.store.toggleTyping()
-                self?.conversation.header = self?.store.header(isTyping: self?.store.isTyping ?? false)
-                    ?? HeaderContent(title: "Ada")
+                self?.nav.popViewController(animated: true)
+                self?.conversation = nil
+                self?.refreshInbox()
             },
             onHeaderTap: { [weak self] in
                 guard let self else { return }
                 self.usingBlue.toggle()
-                self.embed(theme: self.usingBlue ? .blue : .default)
+                self.applyTheme()
             },
             onVideo: {},
             onCall: {},
             onSendText: { [weak self] text in
-                self?.store.sendText(text)
+                guard let self else { return nil }
+                let message = self.store.sendText(text, in: id)
+                self.refreshInbox()
+                return message
             },
             onSendAttachments: { [weak self] attachments in
-                self?.store.sendAttachments(attachments)
+                guard let self else { return nil }
+                let message = self.store.sendAttachments(attachments, in: id)
+                self.refreshInbox()
+                return message
             },
             onSendVoice: { [weak self] url in
-                self?.store.sendVoice(url)
+                guard let self else { return nil }
+                let message = self.store.sendVoice(url, in: id)
+                self.refreshInbox()
+                return message
             },
             onReply: { _ in },
             onReaction: { [weak self] message, emoji in
-                self?.store.addReaction(to: message.id, emoji: emoji)
-                if let snapshot = self?.store.snapshot(in: self?.store.conversationID ?? "") {
-                    self?.conversation.apply(snapshot, animatingDifferences: true)
-                }
+                guard let self else { return }
+                self.store.addReaction(to: message.id, in: id, emoji: emoji)
+                self.conversation?.apply(self.store.snapshot(in: id), animatingDifferences: true)
             },
             onRequestLocation: {
                 CLLocationCoordinate2D(latitude: 52.52, longitude: 13.405)
