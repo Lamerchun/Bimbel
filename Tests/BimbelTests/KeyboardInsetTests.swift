@@ -108,4 +108,11 @@ final class KeyboardInsetTests: XCTestCase {
             )
         )
     }
+
+    func testKeyboardFrameEndReadsCGRectWithoutCapturingNotification() {
+        let rect = CGRect(x: 0, y: 442, width: 390, height: 358)
+        let info: [AnyHashable: Any] = [UIResponder.keyboardFrameEndUserInfoKey: rect]
+        XCTAssertEqual(ComposerKeyboardTracker.keyboardFrameEnd(from: info), rect)
+        XCTAssertNil(ComposerKeyboardTracker.keyboardFrameEnd(from: nil))
+    }
 }

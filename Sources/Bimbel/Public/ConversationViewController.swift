@@ -96,6 +96,13 @@ open class ConversationViewController: UIViewController {
         dockComposerInHost()
     }
 
+    public override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed || isMovingFromParent {
+            keyboardTracker.detach()
+        }
+    }
+
     public override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         bindKeyboardIfNeeded()

@@ -38,10 +38,6 @@ final class ComposerKeyboardTracker {
         didSet { applyDismissMode() }
     }
 
-    deinit {
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-    }
-
     func attach(host: UIView, composer: UIView, collectionView: UICollectionView) {
         self.host = host
         self.composer = composer
@@ -49,6 +45,12 @@ final class ComposerKeyboardTracker {
         applyDismissMode()
         observeKeyboard()
         syncListInsets(flushingLayout: true)
+    }
+
+    /// Main-actor teardown. Swift 6 `deinit` is nonisolated and must not read
+    /// `observers` (`[any NSObjectProtocol]` is not Sendable).
+    func detach() {
+        removeObservers()
     }
 
     func applyDismissMode() {
@@ -170,53 +172,41 @@ final class ComposerKeyboardTracker {
     }
 
     private func observeKeyboard() {
-        observers.forEach { NotificationCenter.default.removeObserver($0) }
-        observers = []
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(
-            forName: UIResponder.keyboardWillShowNotification,
+        removeObservers()
+        // Copy the keyboard CGRect in the observer, then hop only that Sendable
+        // value. Do not capture `Notification` inside `MainActor.assumeIsolated`.
+        addKeyboardObserver(for: UIResponder.keyboardWillShowNotification, flushingLayout: true)
+        addKeyboardObserver(for: UIResponder.keyboardWillHideNotification, flushingLayout: true)
+        // Interactive dismiss can run during `scrollViewDidScroll`. Do not flush.
+        addKeyboardObserver(for: UIResponder.keyboardWillChangeFrameNotification, flushingLayout: false)
+        addKeyboardObserver(for: UIResponder.keyboardDidChangeFrameNotification, flushingLayout: false)
+    }
+
+    private func addKeyboardObserver(for name: Notification.Name, flushingLayout: Bool) {
+        observers.append(NotificationCenter.default.addObserver(
+            forName: name,
             object: nil,
             queue: .main
         ) { [weak self] notification in
+            let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
             MainActor.assumeIsolated {
-                self?.captureFrame(notification)
-                self?.syncListInsets(flushingLayout: true)
-            }
-        })
-        observers.append(center.addObserver(
-            forName: UIResponder.keyboardWillHideNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            MainActor.assumeIsolated {
-                self?.captureFrame(notification)
-                self?.syncListInsets(flushingLayout: true)
-            }
-        })
-        observers.append(center.addObserver(
-            forName: UIResponder.keyboardWillChangeFrameNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            MainActor.assumeIsolated {
-                self?.captureFrame(notification)
-                // Interactive dismiss can run during `scrollViewDidScroll`. Do not flush.
-                self?.syncListInsets()
-            }
-        })
-        observers.append(center.addObserver(
-            forName: UIResponder.keyboardDidChangeFrameNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            MainActor.assumeIsolated {
-                self?.captureFrame(notification)
-                self?.syncListInsets()
+                self?.handleKeyboardFrame(frame, flushingLayout: flushingLayout)
             }
         })
     }
 
-    private func captureFrame(_ notification: Notification) {
-        lastKeyboardFrameInScreen = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+    /// `userInfo` is read in the observer callback; only `CGRect?` crosses to the main actor.
+    nonisolated static func keyboardFrameEnd(from userInfo: [AnyHashable: Any]?) -> CGRect? {
+        userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+    }
+
+    private func handleKeyboardFrame(_ frame: CGRect?, flushingLayout: Bool) {
+        lastKeyboardFrameInScreen = frame
+        syncListInsets(flushingLayout: flushingLayout)
+    }
+
+    private func removeObservers() {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers = []
     }
 }
