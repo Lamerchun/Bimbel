@@ -40,15 +40,19 @@ final class ComposerKeyboardTracker {
         keyboardManager.bind(inputAccessoryView: composer)
         keyboardManager.bind(to: collectionView)
         keyboardManager.transition = { [weak self] _ in
-            self?.syncListInsets()
+            self?.syncListInsets(flushingLayout: true)
         }
-        syncListInsets()
+        syncListInsets(flushingLayout: true)
     }
 
-    func syncListInsets() {
+    /// `flushingLayout` may only be true outside collection view callbacks. Forcing a layout
+    /// pass from `scrollViewDidScroll` or `viewDidLayoutSubviews` runs while the list is still
+    /// dequeuing cells, which trips UIKit's "dequeued view was not returned" assertion.
+    func syncListInsets(flushingLayout: Bool = false) {
         guard let composer, let collectionView, composer.superview != nil else { return }
-        collectionView.layoutIfNeeded()
-        composer.superview?.layoutIfNeeded()
+        if flushingLayout {
+            composer.superview?.layoutIfNeeded()
+        }
         let frame = composer.convert(composer.bounds, to: collectionView)
         let overlap = max(0, collectionView.bounds.maxY - frame.minY)
         guard abs(overlap - lastInset) > 0.5 else { return }

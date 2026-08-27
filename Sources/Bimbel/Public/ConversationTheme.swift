@@ -2,7 +2,7 @@ import UIKit
 
 /// Visual tokens for Surface 1 (conversation). Surface 2 (inbox list) is not in this cut;
 /// when it lands it should consume the same tokens.
-public struct ConversationTheme {
+public struct ConversationTheme: Sendable {
     public var colors: Colors
     public var materials: Materials
     public var radii: Radii
@@ -41,7 +41,9 @@ public struct ConversationTheme {
         case hidden
     }
 
-    public struct Colors {
+    /// Holds UIKit colors, which the compiler cannot prove sendable; the tokens are only ever
+    /// read, never mutated after construction.
+    public struct Colors: @unchecked Sendable {
         public var wallpaper: UIColor
         public var outgoingBubble: UIColor
         public var incomingBubble: UIColor
@@ -279,7 +281,7 @@ public struct ConversationTheme {
         )
     }
 
-    public struct Materials {
+    public struct Materials: Sendable {
         public var headerBlurStyle: UIBlurEffect.Style
         public var usesLiquidGlassWhenAvailable: Bool
 
@@ -375,7 +377,8 @@ public struct ConversationTheme {
         public static let bimbel = Layout()
     }
 
-    public struct Fonts {
+    /// Same reasoning as `Colors`: UIFont is immutable in practice once a token is built.
+    public struct Fonts: @unchecked Sendable {
         public var body: UIFont
         public var metadata: UIFont
         public var headerTitle: UIFont

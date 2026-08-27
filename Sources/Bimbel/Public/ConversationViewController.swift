@@ -624,7 +624,7 @@ extension ConversationViewController: UIImagePickerControllerDelegate, UINavigat
     }
 }
 
-extension ConversationViewController: CNContactPickerDelegate {
+extension ConversationViewController: @preconcurrency CNContactPickerDelegate {
     public func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
         picker.dismiss(animated: true)
     }

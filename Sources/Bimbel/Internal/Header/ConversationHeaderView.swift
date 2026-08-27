@@ -200,7 +200,9 @@ final class ConversationHeaderView: UIView {
 }
 
 final class TypingDotsView: UIView {
-    private var displayLink: CADisplayLink?
+    /// Touched on the main thread only; `nonisolated(unsafe)` so `deinit`, which Swift 6 runs
+    /// outside the actor, can still invalidate the link.
+    private nonisolated(unsafe) var displayLink: CADisplayLink?
     private var phase: CGFloat = 0
 
     override var intrinsicContentSize: CGSize { CGSize(width: 22, height: 10) }

@@ -64,14 +64,17 @@ enum ImageLoader {
         }
     }
 
-    static func load(_ source: ImageSource, completion: @escaping (UIImage?) -> Void) {
+    @MainActor
+    static func load(_ source: ImageSource, completion: @escaping @MainActor (UIImage?) -> Void) {
         switch source {
         case .asset, .data:
             completion(image(from: source))
         case .url(let url):
             URLSession.shared.dataTask(with: url) { data, _, _ in
-                let image = data.flatMap(UIImage.init(data:))
-                DispatchQueue.main.async { completion(image) }
+                // Decode on the main queue so only `Data` crosses the concurrency boundary.
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { completion(data.flatMap(UIImage.init(data:))) }
+                }
             }.resume()
         }
     }

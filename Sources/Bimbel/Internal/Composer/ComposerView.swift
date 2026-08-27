@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 protocol ComposerViewDelegate: AnyObject {
     func composerDidChangeText(_ composer: ComposerView)
     func composerDidTapPlus(_ composer: ComposerView)
@@ -35,6 +36,7 @@ final class ComposerView: UIView, UITextViewDelegate {
     private var placeholderLabel = UILabel()
     private var textHeightConstraint: NSLayoutConstraint?
     private var suppressPlusTap = false
+    private var micHoldOrigin: CGPoint = .zero
 
     var text: String {
         get { textView.text ?? "" }
@@ -70,6 +72,9 @@ final class ComposerView: UIView, UITextViewDelegate {
         actionButton.addTarget(self, action: #selector(tapAction), for: .touchUpInside)
         let micHold = UILongPressGestureRecognizer(target: self, action: #selector(holdAction(_:)))
         micHold.minimumPressDuration = 0.12
+        // Slide-to-cancel and slide-to-lock move far beyond the default allowance;
+        // without this the recognizer cancels as soon as the finger leaves the button.
+        micHold.allowableMovement = .greatestFiniteMagnitude
         actionButton.addGestureRecognizer(micHold)
 
         pill.layer.masksToBounds = true
@@ -260,15 +265,21 @@ final class ComposerView: UIView, UITextViewDelegate {
 
     @objc private func holdAction(_ gesture: UILongPressGestureRecognizer) {
         guard !hasSendableContent else { return }
-        let translation = gesture.translation(in: self)
+        let location = gesture.location(in: self)
         switch gesture.state {
         case .began:
+            micHoldOrigin = location
             delegate?.composerDidBeginMicHold(self)
         case .changed:
-            delegate?.composerDidUpdateMicHold(self, translation: translation)
+            delegate?.composerDidUpdateMicHold(self, translation: micHoldTranslation(to: location))
         default:
-            delegate?.composerDidEndMicHold(self, translation: translation)
+            delegate?.composerDidEndMicHold(self, translation: micHoldTranslation(to: location))
         }
+    }
+
+    /// Long press has no translation of its own; measure against the touch point taken at `.began`.
+    private func micHoldTranslation(to location: CGPoint) -> CGPoint {
+        CGPoint(x: location.x - micHoldOrigin.x, y: location.y - micHoldOrigin.y)
     }
 }
 
