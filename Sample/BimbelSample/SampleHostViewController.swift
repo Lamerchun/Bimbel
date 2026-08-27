@@ -33,10 +33,8 @@ final class SampleHostViewController: UIViewController {
         nav.didMove(toParent: self)
         showInbox()
         if Self.shotName == "ada" {
-            openConversation(store.adaID, animated: false)
-            DispatchQueue.main.async { [weak self] in
-                self?.conversation?.presentKeyboardAfterAccessoryReparent()
-            }
+            // Flag before push so viewDidAppear reparents, then focuses.
+            openConversation(store.adaID, animated: false, presentKeyboardOnAppear: true)
         }
     }
 
@@ -64,7 +62,11 @@ final class SampleHostViewController: UIViewController {
         conversation = nil
     }
 
-    private func openConversation(_ id: ConversationID, animated: Bool = true) {
+    private func openConversation(
+        _ id: ConversationID,
+        animated: Bool = true,
+        presentKeyboardOnAppear: Bool = false
+    ) {
         let controller = ConversationViewController(
             conversationID: id,
             dataSource: store,
@@ -72,6 +74,7 @@ final class SampleHostViewController: UIViewController {
             header: store.header(for: id),
             actions: conversationActions(for: id)
         )
+        controller.presentsKeyboardOnAppear = presentKeyboardOnAppear
         conversation = controller
         nav.pushViewController(controller, animated: animated)
     }

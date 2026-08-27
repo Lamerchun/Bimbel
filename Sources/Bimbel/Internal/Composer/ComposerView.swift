@@ -14,7 +14,7 @@ protocol ComposerViewDelegate: AnyObject {
     func composerDidEndMicHold(_ composer: ComposerView, translation: CGPoint)
     func composerDidCancelReply(_ composer: ComposerView)
     func composerDidChangeHeight(_ composer: ComposerView)
-    func composerWillBeginEditing(_ composer: ComposerView)
+    func composerShouldBeginEditing(_ composer: ComposerView) -> Bool
     func composerDidEndEditing(_ composer: ComposerView)
 }
 
@@ -265,8 +265,7 @@ final class ComposerView: UIView, UITextViewDelegate {
     }
 
     func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
-        delegate?.composerWillBeginEditing(self)
-        return true
+        delegate?.composerShouldBeginEditing(self) ?? true
     }
 
     func textViewDidEndEditing(_ textView: UITextView) {

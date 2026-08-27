@@ -157,4 +157,29 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertEqual(ComposerKeyboardTracker.keyboardFrameEnd(from: info), rect)
         XCTAssertNil(ComposerKeyboardTracker.keyboardFrameEnd(from: nil))
     }
+
+    func testEmbedRemovesComposerFromPreviousSuperview() {
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 800))
+        let composer = ComposerView()
+        host.addSubview(composer)
+        XCTAssertTrue(composer.superview === host)
+
+        let container = ComposerAccessoryContainer()
+        container.embed(composer)
+
+        XCTAssertTrue(composer.superview === container, "one composer; never the VC and accessory at once")
+        XCTAssertFalse(host.subviews.contains(where: { $0 === composer }))
+        XCTAssertEqual(container.subviews.filter { $0 === composer }.count, 1)
+    }
+
+    func testTextViewInputAccessoryViewIsNeverItsAncestor() {
+        let composer = ComposerView()
+        let container = ComposerAccessoryContainer()
+        container.embed(composer)
+        composer.textView.accessoryContainer = container
+        XCTAssertNil(
+            composer.textView.inputAccessoryView,
+            "returning the ancestor is recursive; UIKit drops the bar. The VC owns inputAccessoryView."
+        )
+    }
 }

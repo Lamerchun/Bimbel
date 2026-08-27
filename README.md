@@ -20,7 +20,7 @@ Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), 
 
 Nächster sichtbarer Schritt: Simulator-Screenshots.
 
-Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread.
+Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread. Ada keyboard-up shot: env `BIMBEL_SHOT=ada` or args `-BIMBEL_SHOT ada`, with Simulator **Connect Hardware Keyboard** off.
 
 ## Embed
 
@@ -65,11 +65,11 @@ Coding-agent notes: [AGENTS.md](AGENTS.md) · [docs/for-coding-agents.md](docs/f
 
 The conversation VC owns the accessory. ChatLayout is not given `additionalSafeAreaInsets`. InputBarAccessoryView is not used.
 
-1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar.
-2. Keyboard hidden: the **same** composer instance is docked in the conversation VC at the safe-area bottom (wallpaper shows through).
-3. Keyboard visible: that instance is reparented into the VC’s `inputAccessoryView` (a clear container). The text view lives inside the composer; its `inputAccessoryView` is the **container**, never the composer.
+1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar. One instance.
+2. Keyboard hidden: that instance is docked in the conversation VC at the safe-area bottom (wallpaper shows through).
+3. Keyboard visible: `removeFromSuperview()` first, embed the same view in the VC’s `inputAccessoryView` container, **then** `becomeFirstResponder`. Never leave it in the VC hierarchy at the same time as accessory. The VC’s `inputAccessoryView` is the container; the text view returns nil (returning its ancestor is recursive and UIKit drops the bar).
 4. `collectionView.keyboardDismissMode = .interactiveWithAccessory` so drag-to-dismiss starts at the composer, not the keys.
-5. List `contentInset.bottom` has one owner: the top of the composer (docked or accessory) plus gap. When the keyboard is visible, that covering already includes the accessory — do not add keyboard height + composer height. A keys-only keyboard frame still adds composer height so the last bubble clears the floating bar.
+5. List `contentInset.bottom` has one owner (`ComposerKeyboardTracker`): the top of the composer plus `layout.listComposerGap` (8). Do not add keyboard height + composer height. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`.
 6. Attach sheet is the text view’s `inputView`. Voice-lock and the attach sheet disable the dismiss pan.
 
 Do not pin the composer to `keyboardLayoutGuide`. Do not use IBAV `KeyboardManager` as the position owner.

@@ -39,7 +39,7 @@ conversation.apply(snapshot, animatingDifferences: true)
 
 ## Keyboard (do not “binary hide”)
 
-See README → Keyboard. The conversation VC’s `inputAccessoryView` hosts the Zustand B composer while the keyboard is up so drag-to-dismiss starts at the input (`keyboardDismissMode = .interactiveWithAccessory`). Dock the same instance in the VC when the keyboard is hidden. List insets have one owner (keyboard frame / `keyboardLayoutGuide`); do not add keyboard height + composer height, and do not use IBAV `KeyboardManager`.
+See README → Keyboard. One composer view. When the keyboard will show: `removeFromSuperview()` first, embed in the VC’s `inputAccessoryView` container, **then** `becomeFirstResponder`. Never two hierarchies. The VC owns the accessory (`canBecomeFirstResponder == true`); the text view must not return its ancestor. `keyboardDismissMode = .interactiveWithAccessory`. List insets have one owner (`ComposerKeyboardTracker`): covering edge = composer top + `listComposerGap` (8). Do not add keyboard height + composer height. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`. Do not use IBAV `KeyboardManager`.
 
 ## Themes
 
@@ -50,3 +50,5 @@ Header glass: Liquid Glass on iOS 26 (`UIGlassEffect` if present), otherwise `.s
 ## Sample
 
 Open `Bimbel.xcworkspace`. Target `BimbelSample`. Starts on the inbox. Tap Ada for the mixed-kind thread. Tap the title to switch Default ↔ Blue.
+
+Lock 5 keyboard-up shot: `BIMBEL_SHOT=ada` (env) or `-BIMBEL_SHOT ada` (args). Simulator → I/O → Keyboard → Connect Hardware Keyboard **off**. Sample opens Ada, reparents the composer, then focuses the text view so software QWERTZ stands.

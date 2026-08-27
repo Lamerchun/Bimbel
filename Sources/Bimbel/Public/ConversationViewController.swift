@@ -18,6 +18,9 @@ open class ConversationViewController: UIViewController {
         didSet { headerView.apply(content: header, theme: theme) }
     }
     public var actions: ConversationActions
+    /// Host sets this before the conversation appears (e.g. `BIMBEL_SHOT=ada`).
+    /// `viewDidAppear` reparents, then focuses the text view so QWERTZ stands.
+    public var presentsKeyboardOnAppear = false
 
     private let wallpaper = UIView()
     private let chatLayout = CollectionViewChatLayout()
@@ -112,6 +115,10 @@ open class ConversationViewController: UIViewController {
         bindKeyboardIfNeeded()
         keyboardTracker.syncListInsets(flushingLayout: true)
         scrollToBottom(animated: false)
+        if presentsKeyboardOnAppear {
+            presentsKeyboardOnAppear = false
+            presentKeyboardAfterAccessoryReparent()
+        }
     }
 
     public override func viewDidLayoutSubviews() {
@@ -141,6 +148,12 @@ open class ConversationViewController: UIViewController {
     /// so the software keyboard stands. Call this after the conversation has
     /// appeared. Do not focus first — that docks and accessories at once.
     public func presentKeyboardAfterAccessoryReparent() {
+        loadViewIfNeeded()
+        guard view.window != nil else {
+            presentsKeyboardOnAppear = true
+            return
+        }
+        bindKeyboardIfNeeded()
         isMovingComposer = true
         moveComposerToAccessory()
         composer.textView.becomeFirstResponder()
@@ -293,7 +306,9 @@ open class ConversationViewController: UIViewController {
             accessoryBar: accessoryContainer,
             collectionView: collectionView
         )
-        dockComposerInHost()
+        if composer.superview !== accessoryContainer {
+            dockComposerInHost()
+        }
     }
 
     private func moveComposerToAccessory() {
@@ -301,6 +316,12 @@ open class ConversationViewController: UIViewController {
             isComposerInAccessory = true
             keyboardTracker.isComposerInAccessory = true
             accessoryContainer.invalidateIntrinsicContentSize()
+            // Do not steal first responder or reloadInputViews while the text
+            // view is already editing — that re-queries a nil accessory and drops the bar.
+            if composer.textView.isFirstResponder {
+                return
+            }
+            _ = becomeFirstResponder()
             reloadInputViews()
             return
         }
@@ -473,7 +494,7 @@ open class ConversationViewController: UIViewController {
         replyTarget = message
         actions.onReply?(message)
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: isSheetPresented, reply: message)
-        composer.textView.becomeFirstResponder()
+        presentKeyboardAfterAccessoryReparent()
         keyboardTracker.syncListInsets()
     }
 
@@ -484,6 +505,11 @@ open class ConversationViewController: UIViewController {
     private func presentSheet() {
         attachmentSheet.apply(theme: theme)
         attachmentSheet.reloadRecents()
+        if composer.superview !== accessoryContainer {
+            isMovingComposer = true
+            moveComposerToAccessory()
+            isMovingComposer = false
+        }
         composer.textView.inputView = attachmentSheet
         composer.textView.reloadInputViews()
         if !composer.textView.isFirstResponder {
@@ -763,8 +789,20 @@ extension ConversationViewController: ComposerViewDelegate {
         keyboardTracker.syncListInsets(flushingLayout: true)
     }
 
-    func composerWillBeginEditing(_ composer: ComposerView) {
+    func composerShouldBeginEditing(_ composer: ComposerView) -> Bool {
+        if composer.superview === accessoryContainer {
+            return true
+        }
+        // Abort this first-responder attempt. Focusing while still docked in the
+        // VC leaves the composer in two hierarchies; QWERTZ never settles.
+        isMovingComposer = true
         moveComposerToAccessory()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.composer.textView.becomeFirstResponder()
+            self.isMovingComposer = false
+        }
+        return false
     }
 
     func composerDidEndEditing(_ composer: ComposerView) {
