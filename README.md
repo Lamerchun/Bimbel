@@ -6,9 +6,9 @@ Bimbel is a native iOS chat component for the conversation list and the conversa
 
 ## Stand der Dinge
 
-Projektstart: 27. August 2026. Surface 1 (Conversation) liegt als Swift Package + Sample-App im Repo.
+Projektstart: 27. August 2026. Surface 1 (Conversation) und Surface 2 (Inbox / Unterhaltungsübersicht) liegen als Swift Package + Sample-App im Repo.
 
-Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), Keyboard inkl. Drag-to-dismiss, Voice-Lock. Liste folgt als Surface 2, gleiche Tokens.
+Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), Keyboard inkl. Drag-to-dismiss, Voice-Lock. Inbox-Liste mit denselben Tokens.
 
 | Bereich | Wer | Stand |
 | --- | --- | --- |
@@ -18,36 +18,46 @@ Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), 
 | Texte nach außen | Laura | Package-Copy, Captions, einheitlicher Ton |
 | Marketing | Miriam | Repo, Status, Screenshots, Mitmachen |
 
-Nächster sichtbarer Schritt: Simulator-Screenshots, Surface 2 (Inbox-Liste).
+Nächster sichtbarer Schritt: Simulator-Screenshots.
 
-Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout).
+Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread.
 
 ## Embed
 
 ```swift
 import Bimbel
 
-let conversation = ConversationViewController(
-    conversationID: id,
-    dataSource: dataSource,
+let inbox = InboxViewController(
+    dataSource: store,
     theme: .default,            // or .blue / your tokens
-    header: HeaderContent(title: "Ada", subtitle: "tap here for contact info"),
-    actions: ConversationActions(
-        onBack: { dismiss() },
-        onSendText: { text in store.insertText(text) },      // return Message? 
-        onSendAttachments: { store.insert($0) },
-        onSendVoice: { url in store.insertVoice(url) }
+    actions: InboxActions(
+        onOpen: { id in showThread(id) },
+        onPin: { id in store.togglePin(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
+        onMute: { id in store.toggleMute(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
+        onDelete: { id in store.delete(id); inbox.apply(store.snapshot(), animatingDifferences: true) }
     )
 )
-present(conversation, animated: true)
+navigation.setViewControllers([inbox], animated: false)
 
-// When messages change, push a snapshot. Do not expect the package to poll.
-conversation.apply(store.snapshot(in: id), animatingDifferences: true)
+func showThread(_ id: ConversationID) {
+    let conversation = ConversationViewController(
+        conversationID: id,
+        dataSource: store,
+        theme: .default,
+        header: HeaderContent(title: "Ada"),
+        actions: ConversationActions(
+            onBack: { navigation.popViewController(animated: true) },
+            onSendText: { store.insertText($0, in: id) }
+        )
+    )
+    conversation.apply(store.snapshot(in: id), animatingDifferences: false)
+    navigation.pushViewController(conversation, animated: true)
+}
 ```
 
-Send closures return `Message?`. Non-nil: Bimbel inserts via `apply`. Nil: you already pushed. The package never mints IDs.
+Host owns data. Call `apply` on **both** surfaces when their snapshots change. Send closures return `Message?`. The package never mints IDs.
 
-SwiftUI: `ConversationView(...)` wraps the same controller. Keep a `ConversationViewController` when you need `apply`.
+SwiftUI: `InboxView(...)` and `ConversationView(...)` wrap the same controllers. Keep the UIKit controllers when you need `apply`.
 
 Coding-agent notes: [AGENTS.md](AGENTS.md) · [docs/for-coding-agents.md](docs/for-coding-agents.md)
 
@@ -65,7 +75,7 @@ The composer owns keyboard insets. ChatLayout is not given `additionalSafeAreaIn
 
 ## Theme & materials
 
-`ConversationTheme.default` nods at mint/teal. `ConversationTheme.blue` is the foreign accent in the sample (tap the header title). Delivery accessories are `.ticks`, `.dot`, or `.hidden` — ticks are not hard-coded.
+`ConversationTheme.default` nods at mint/teal. `ConversationTheme.blue` is the foreign accent in the sample (tap the inbox title or a conversation title). Delivery accessories are `.ticks`, `.dot`, or `.hidden` — ticks are not hard-coded.
 
 Header glass uses Liquid Glass when `UIGlassEffect` exists at runtime (iOS 26). iOS 17/18 fall back to `.systemUltraThinMaterial`. Wallpaper is a solid/quiet color; the package ships no doodle asset.
 

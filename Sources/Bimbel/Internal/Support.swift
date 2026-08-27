@@ -45,6 +45,26 @@ enum BimbelFormatters {
         return value > 99 ? "99+" : "\(value)"
     }
 
+    static func relativeTime(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        if calendar.isDateInToday(date) {
+            return messageTime.string(from: date)
+        }
+        if calendar.isDateInYesterday(date) {
+            return String(localized: "Yesterday")
+        }
+        let startOfNow = calendar.startOfDay(for: now)
+        let startOfDate = calendar.startOfDay(for: date)
+        if let days = calendar.dateComponents([.day], from: startOfDate, to: startOfNow).day, days < 7 {
+            let formatter = DateFormatter()
+            formatter.setLocalizedDateFormatFromTemplate("EEE")
+            return formatter.string(from: date)
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+
     static func duration(_ interval: TimeInterval) -> String {
         let total = Int(interval.rounded())
         return String(format: "%d:%02d", total / 60, total % 60)

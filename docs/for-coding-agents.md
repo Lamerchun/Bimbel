@@ -4,37 +4,38 @@ Bimbel is a reusable native iOS conversation **component**. Product name is Bimb
 
 ## Public API
 
+Two surfaces, same `ConversationTheme`:
+
 ```swift
-public typealias MessageID = String
-public typealias UserID = String
-public typealias ConversationID = String
+InboxViewController(
+    dataSource: InboxDataSource,
+    theme: ConversationTheme.default,
+    actions: InboxActions()
+)
+inbox.apply(snapshot, animatingDifferences: true)
 
 ConversationView(
     conversationID: ConversationID,
     dataSource: ConversationDataSource,
     theme: ConversationTheme.default,
     header: HeaderContent(...),
-    actions: ConversationActions()  // all closures optional
+    actions: ConversationActions()
 )
+conversation.apply(snapshot, animatingDifferences: true)
 ```
 
-UIKit host: `ConversationViewController`. Same initializer. Call `apply(_ snapshot:animatingDifferences:)` when the thread changes.
+### Inbox
 
-### Data
+- `InboxItem`: `id` (`ConversationID`), `title`, `preview`, `timestamp`, `avatar`, `unreadCount`, `isPinned`, `isMuted`, `isTyping`, `isGroup`.
+- `InboxActions.onOpen(ConversationID)` from the row. Pin / mute / delete are host persistence; then `apply` again.
+- Package never mints conversation IDs.
+
+### Thread
 
 - `ConversationDataSource.snapshot(in:)`, `loadOlder(in:) async throws`, `participant(id:)`.
 - `Message`: `id`, `senderID`, `sentAt`, `kind`, `replyTo`, `reactions`, `delivery`, `isEdited`, `isOutgoing`.
 - `MessageKind`: `text(String, preview:)`, `image`, `video`, `voice`, `document`, `system`. No separate link-preview kind.
-- `DeliveryState`: `sending`, `sent`, `delivered`, `read`, `failed`.
-- `ConversationTheme.deliveryAccessory`: `.ticks` | `.dot` | `.hidden`.
-
-### Send
-
-`onSendText` / `onSendAttachments` / `onSendVoice` return `Message?`.
-
-- Non-nil → package inserts via `apply`.
-- Nil → host already pushed a snapshot.
-- Package never mints IDs.
+- `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?` (non-nil → package inserts; nil → host already applied).
 
 ## Keyboard (do not “binary hide”)
 
@@ -42,10 +43,10 @@ See README → Keyboard. Owner is the composer + IBAV `KeyboardManager`. Interac
 
 ## Themes
 
-Ship at least two looks in any demo: `ConversationTheme.default` and `ConversationTheme.blue` (or another foreign accent). Do not treat mint/teal as the only appearance.
+Ship at least two looks in any demo: `ConversationTheme.default` and `ConversationTheme.blue`. Inbox and thread share the tokens.
 
 Header glass: Liquid Glass on iOS 26 (`UIGlassEffect` if present), otherwise `.systemUltraThinMaterial`.
 
 ## Sample
 
-Open `Bimbel.xcworkspace`. Target `BimbelSample`. Fake `ConversationDataSource`, mixed kinds, send, typing (Back in the sample), hold-to-record (state machine + AVAudioRecorder when the session allows).
+Open `Bimbel.xcworkspace`. Target `BimbelSample`. Starts on the inbox. Tap Ada for the mixed-kind thread. Tap the title to switch Default ↔ Blue.

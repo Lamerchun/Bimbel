@@ -1,7 +1,7 @@
 import UIKit
 
-/// Visual tokens for Surface 1 (conversation). Surface 2 (inbox list) is not in this cut;
-/// when it lands it should consume the same tokens.
+/// Visual tokens shared by Surface 1 (conversation) and Surface 2 (inbox).
+/// Do not introduce a parallel palette for the list.
 public struct ConversationTheme: Sendable {
     public var colors: Colors
     public var materials: Materials
