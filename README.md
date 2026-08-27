@@ -1,8 +1,8 @@
-# ios-chat
+# Bimbel
 
 Native iOS chat app. Conversation UI first, WhatsApp-style, built in Swift.
 
-Native iOS Chat-App. Fokus liegt auf dem Chat selbst (Konversation, Blasen, Composer, Keyboard), nicht auf Status, Anrufen oder Settings.
+Bimbel ist eine native iOS Chat-App. Fokus liegt auf dem Chat selbst (Konversation, Blasen, Composer, Keyboard), nicht auf Status, Anrufen oder Settings.
 
 ## Stand der Dinge
 
@@ -13,6 +13,7 @@ Projektstart: 27. August 2026. Noch kein App-Code im Repo, die Arbeit läuft ger
 | Research & Requirements (Chat-UI) | Quang | WhatsApp-Chatbereich analysieren, Requirements für UI und Entwicklung |
 | UI / UX | Thang | Richtung und Anweisungen, damit die App modern wirkt |
 | iOS / Swift | Tuan | Native Umsetzung in Xcode |
+| Marketing (Repo, Status, Instagram) | Miriam | Öffentliches Repo, Stand der Dinge, Mitmachen |
 
 Nächster sichtbarer Schritt: erste Screenshots und ein lauffähiges Chat-UI im Simulator.
 
