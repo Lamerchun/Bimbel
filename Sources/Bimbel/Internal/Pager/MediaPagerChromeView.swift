@@ -55,7 +55,11 @@ final class MediaPagerChromeView: UIView {
             closeButton.widthAnchor.constraint(equalToConstant: theme.layout.hitTarget),
             closeButton.heightAnchor.constraint(equalToConstant: theme.layout.hitTarget),
             trailing.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            trailing.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor)
+            trailing.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+            saveButton.widthAnchor.constraint(equalToConstant: theme.layout.hitTarget),
+            saveButton.heightAnchor.constraint(equalToConstant: theme.layout.hitTarget),
+            forwardButton.widthAnchor.constraint(equalToConstant: theme.layout.hitTarget),
+            forwardButton.heightAnchor.constraint(equalToConstant: theme.layout.hitTarget)
         ])
     }
 

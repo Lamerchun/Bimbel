@@ -56,7 +56,7 @@ func showThread(_ id: ConversationID) {
 }
 ```
 
-Host owns data. Call `apply` on **both** surfaces when their snapshots change. Send closures return `Message?` (`onSendMedia` returns `[Message]?`). Camera and picker go through `EditSession` before `onSendMedia`. The package never mints IDs.
+Host owns data. Call `apply` on **both** surfaces when their snapshots change. Send closures return `Message?` (`onSendMedia` returns `[Message]?`). Camera and picker go through `EditSession` before `onSendMedia`. Tap image/video opens the fullscreen pager (`onSaveMedia` / `onForward`). The package never mints IDs.
 
 SwiftUI: `InboxView(...)` and `ConversationView(...)` wrap the same controllers. Keep the UIKit controllers when you need `apply`.
 
