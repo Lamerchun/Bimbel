@@ -78,6 +78,10 @@ open class InboxViewController: UIViewController {
         let previous = itemsByID
         self.snapshot = snapshot
         if canReconfigureTyping(from: previous, to: snapshot.items) {
+            guard canMutateTable else {
+                pendingVisibleReload = true
+                return
+            }
             updateVisibleTyping(from: previous)
             return
         }
@@ -176,14 +180,23 @@ open class InboxViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.estimatedRowHeight = InboxRowMetrics.estimatedRowHeight(theme: theme)
         headerView.apply(title: titleText, theme: theme)
+        guard canMutateTable else { return }
         tableView.reloadData()
+    }
+
+    /// Covered inbox (thread pushed) still has a window. Applying / reloading
+    /// it from `onSendVoice` / `onSendText` is the post-voice EXC_BREAKPOINT.
+    private var canMutateTable: Bool {
+        guard isViewLoaded, view.window != nil else { return false }
+        if let nav = navigationController {
+            return nav.topViewController === self
+        }
+        return true
     }
 
     private func reloadVisible(animating: Bool) {
         guard isViewLoaded else { return }
-        // Off-window apply (covered inbox during thread send) must not touch
-        // the table — `reconfigureItems` on a detached list is EXC_BREAKPOINT.
-        guard view.window != nil else {
+        guard canMutateTable else {
             pendingVisibleReload = true
             return
         }

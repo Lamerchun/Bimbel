@@ -38,6 +38,7 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertEqual(voice.state, .idle)
         XCTAssertGreaterThanOrEqual(take?.duration ?? 0, 0.2)
         XCTAssertEqual(take?.url.pathExtension, "m4a")
+        XCTAssertGreaterThanOrEqual(VoiceRecordingController.postVoiceTeardownHold, 2)
     }
 
     func testCancelHintTurnsSystemRedPastSeventyTwoPoints() {

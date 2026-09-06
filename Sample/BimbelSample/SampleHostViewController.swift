@@ -107,6 +107,9 @@ final class SampleHostViewController: UIViewController {
     }
 
     private func refreshInbox() {
+        // Covered inbox + Diffable apply is a SpringBoard death after voice
+        // send/cancel. Refresh only when the thread is gone (`onBack`).
+        guard conversation == nil else { return }
         inbox.apply(store.snapshot(), animatingDifferences: true)
     }
 

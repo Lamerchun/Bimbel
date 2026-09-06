@@ -461,11 +461,11 @@ open class ConversationViewController: UIViewController {
         insertHostMessages(message.map { [$0] })
     }
 
-    private func insertHostMessages(_ messages: [Message]?) {
+    private func insertHostMessages(_ messages: [Message]?, animatingDifferences: Bool = true) {
         guard let messages, !messages.isEmpty else { return }
         var next = snapshot
         next.messages.append(contentsOf: messages)
-        apply(next, animatingDifferences: true)
+        apply(next, animatingDifferences: animatingDifferences)
     }
 
     private func beginReply(_ message: Message) {
@@ -505,8 +505,11 @@ open class ConversationViewController: UIViewController {
         let quote = replyTarget
         replyTarget = nil
         composer.apply(theme: theme, sendable: isSendable, sheetPresented: isSheetPresented, reply: nil)
-        insertHostMessage(actions.onSendVoice?(take.url, take.duration, take.waveform, quote))
-        scrollToBottom(animated: true)
+        insertHostMessages(
+            actions.onSendVoice?(take.url, take.duration, take.waveform, quote).map { [$0] },
+            animatingDifferences: false
+        )
+        scrollToBottom(animated: false)
     }
 
     private func handleAttachment(_ action: AttachmentAction) {

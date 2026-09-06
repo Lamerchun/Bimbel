@@ -168,8 +168,21 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
     }
 
     @objc private func otherWillPlay(_ notification: Notification) {
-        guard notification.object as? UUID != objectToken else { return }
-        stop(resetClock: true)
+        let token = notification.object as? UUID
+        let hop = { [weak self] in
+            guard let self, token != self.objectToken else { return }
+            self.stop(resetClock: true)
+        }
+        if Thread.isMainThread {
+            hop()
+        } else {
+            DispatchQueue.main.async(execute: hop)
+        }
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        _ = player
+        _ = error
     }
 
     /// Audio session callbacks are not MainActor. Hop before touching views —
