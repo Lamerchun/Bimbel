@@ -23,9 +23,14 @@ enum VoiceGesture {
     }
 }
 
-/// Hold-mic recorder. Stop the meter *before* `AVAudioRecorder.stop()`.
-/// Do not deactivate the audio session on the same turn as `stop()` — that
-/// races mediaserverd (process death / SpringBoard) and drops the take.
+/// Process-lifetime park. `AVAudioRecorder.stop()` and releasing the recorder
+/// (dealloc also stops) race mediaserverd → SpringBoard. Pause and keep.
+enum VoiceRecorderPark {
+    static var recorders: [AVAudioRecorder] = []
+}
+
+/// Hold-mic recorder. Never `stop()` the writer and never `setActive(false)`.
+/// Thang: delayed `stop()` at ~2.2s killed the process after a correct idle UI.
 @MainActor
 final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     enum State: Equatable {
@@ -44,13 +49,8 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     private var samples: [Float] = []
     /// Main-thread only. `nonisolated(unsafe)` so Swift 6 `deinit` can invalidate.
     private nonisolated(unsafe) var displayLink: CADisplayLink?
-    private var pendingTeardown: DispatchWorkItem?
     var onLevel: ((Float, TimeInterval) -> Void)?
     var onStateChange: ((State) -> Void)?
-
-    /// Hold after cancel/send before `stop()` / file delete. Immediate stop+delete
-    /// races mediaserverd after the idle UI already landed (SpringBoard).
-    static let postVoiceTeardownHold: TimeInterval = 2.2
 
     var currentDuration: TimeInterval {
         let running: TimeInterval = (state == .recording || state == .locked) ? Date().timeIntervalSince(startedAt ?? Date()) : 0
@@ -66,10 +66,9 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     }
 
     func begin() {
-        cancelPendingTeardown(runNow: true)
         stopMeter()
         stopPreview()
-        abandonRecorder(deleteFile: true)
+        parkRecorder()
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("bimbel-voice-\(UUID().uuidString).m4a")
         fileURL = url
         accumulated = 0
@@ -116,16 +115,17 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     func cancel() {
         stopMeter()
         stopPreview()
-        let doomed = fileURL
+        // Discard = forget the URL. Do not `stop()`, `setActive(false)`, or
+        // `removeItem` — those are the crashy teardown. Temp cleans up later.
         fileURL = nil
         samples = []
         accumulated = 0
         state = .idle
         onStateChange?(state)
-        scheduleTeardown(delete: doomed)
+        parkRecorder()
     }
 
-    /// Hands the temp file to the host. Package does not keep ownership after send.
+    /// Hands the temp file to the host. Writer stays paused and parked.
     func finish() -> VoiceTake? {
         stopMeter()
         let duration = currentDuration
@@ -137,9 +137,7 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
         accumulated = 0
         state = .idle
         onStateChange?(state)
-        // Pause now, `stop()` after `postVoiceTeardownHold`. Immediate `stop()`
-        // + session teardown is the post-UI SpringBoard death.
-        scheduleTeardown(delete: nil)
+        parkRecorder()
         guard let url else { return nil }
         return VoiceTake(url: url, duration: max(duration, 0.2), waveform: waves)
     }
@@ -170,7 +168,7 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     }
 
     func stopPreview() {
-        previewPlayer?.stop()
+        previewPlayer?.pause()
         previewPlayer = nil
     }
 
@@ -231,47 +229,13 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
         samples.append(normalized)
     }
 
-    private func abandonRecorder(deleteFile: Bool) {
+    /// Pause and retain. Never `stop()` — dealloc of `AVAudioRecorder` stops too.
+    private func parkRecorder() {
         stopMeter()
-        let doomed = deleteFile ? fileURL : nil
-        let active = recorder
+        guard let active = recorder else { return }
         recorder = nil
-        active?.pause()
-        scheduleTeardown(writer: active, delete: doomed)
-    }
-
-    private func scheduleTeardown(delete: URL?) {
-        let active = recorder
-        recorder = nil
-        active?.pause()
-        scheduleTeardown(writer: active, delete: delete)
-    }
-
-    private func scheduleTeardown(writer: AVAudioRecorder?, delete: URL?) {
-        pendingTeardown?.cancel()
-        nonisolated(unsafe) let writer = writer
-        let doomed = delete
-        let work = DispatchWorkItem {
-            writer?.stop()
-            if let doomed {
-                try? FileManager.default.removeItem(at: doomed)
-            }
-            // Leave AVAudioSession active. `setActive(false)` on this path
-            // races mediaserverd after the idle UI is already on screen.
-        }
-        pendingTeardown = work
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + Self.postVoiceTeardownHold,
-            execute: work
-        )
-    }
-
-    private func cancelPendingTeardown(runNow: Bool) {
-        pendingTeardown?.cancel()
-        pendingTeardown = nil
-        if runNow {
-            recorder?.pause()
-        }
+        active.pause()
+        VoiceRecorderPark.recorders.append(active)
     }
 
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {

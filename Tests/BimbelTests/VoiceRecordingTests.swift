@@ -38,7 +38,19 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertEqual(voice.state, .idle)
         XCTAssertGreaterThanOrEqual(take?.duration ?? 0, 0.2)
         XCTAssertEqual(take?.url.pathExtension, "m4a")
-        XCTAssertGreaterThanOrEqual(VoiceRecordingController.postVoiceTeardownHold, 2)
+    }
+
+    func testCancelAndFinishParkWriterWithoutStop() {
+        let parked = VoiceRecorderPark.recorders.count
+        let voice = VoiceRecordingController()
+        voice.begin()
+        voice.cancel()
+        XCTAssertEqual(voice.state, .idle)
+        XCTAssertGreaterThanOrEqual(VoiceRecorderPark.recorders.count, parked)
+        voice.begin()
+        XCTAssertNotNil(voice.finish())
+        XCTAssertEqual(voice.state, .idle)
+        XCTAssertGreaterThan(VoiceRecorderPark.recorders.count, parked)
     }
 
     func testCancelHintTurnsSystemRedPastSeventyTwoPoints() {
