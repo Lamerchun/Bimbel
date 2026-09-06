@@ -6,15 +6,15 @@ final class VoiceRecordingTests: XCTestCase {
     func testHoldGestureLockIsUpAndCancelIsLeft() {
         let cancelAt = ConversationTheme.default.layout.voiceCancelTranslation
         let lockAt = ConversationTheme.default.layout.voiceLockTranslation
-        XCTAssertEqual(cancelAt, 80)
-        XCTAssertEqual(lockAt, 80)
+        XCTAssertEqual(cancelAt, 72)
+        XCTAssertEqual(lockAt, 56)
 
         XCTAssertEqual(
-            VoiceGesture.outcome(translation: CGPoint(x: -80, y: 0), cancelAt: cancelAt, lockAt: lockAt),
+            VoiceGesture.outcome(translation: CGPoint(x: -72, y: 0), cancelAt: cancelAt, lockAt: lockAt),
             .cancel
         )
         XCTAssertEqual(
-            VoiceGesture.outcome(translation: CGPoint(x: 0, y: -80), cancelAt: cancelAt, lockAt: lockAt),
+            VoiceGesture.outcome(translation: CGPoint(x: 0, y: -56), cancelAt: cancelAt, lockAt: lockAt),
             .lock
         )
         XCTAssertEqual(
@@ -33,8 +33,9 @@ final class VoiceRecordingTests: XCTestCase {
         let cancelAt = ConversationTheme.default.layout.voiceCancelTranslation
         let lockAt = ConversationTheme.default.layout.voiceLockTranslation
         XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: -40, y: 0), cancelAt: cancelAt, lockAt: lockAt))
+        XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: -71, y: 0), cancelAt: cancelAt, lockAt: lockAt))
         XCTAssertEqual(
-            VoiceGesture.outcome(translation: CGPoint(x: -80, y: 0), cancelAt: cancelAt, lockAt: lockAt),
+            VoiceGesture.outcome(translation: CGPoint(x: -72, y: 0), cancelAt: cancelAt, lockAt: lockAt),
             .cancel
         )
     }
@@ -68,12 +69,45 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertTrue(names.contains("Discard recording"))
     }
 
-    func testWaveformTokenIsAccentAtSixtyPercent() {
+    func testSlice3Tokens() {
         let theme = ConversationTheme.default
+        XCTAssertEqual(theme.colors.waveform.cgColor.alpha, 0.6, accuracy: 0.01)
+        XCTAssertEqual(theme.colors.waveformPlayed.cgColor.alpha, 1.0, accuracy: 0.01)
         XCTAssertEqual(theme.colors.waveformAccent.cgColor.alpha, 0.6, accuracy: 0.01)
+        XCTAssertEqual(theme.colors.waveformPlayedAccent.cgColor.alpha, 1.0, accuracy: 0.01)
+        XCTAssertEqual(theme.layout.recordingBarHeight, 40)
+        XCTAssertEqual(theme.layout.voiceCancelTranslation, 72)
+        XCTAssertEqual(theme.layout.voiceLockZone, 56)
+        XCTAssertEqual(theme.layout.voiceLockTranslation, 56)
+        XCTAssertEqual(theme.layout.voicePlaySize, 32)
+        XCTAssertEqual(theme.layout.voiceWaveformHeight, 24)
+        XCTAssertEqual(theme.layout.voiceChromeDim, 0.35, accuracy: 0.001)
+        XCTAssertEqual(theme.radii.lockCapsule, 22)
         XCTAssertEqual(theme.materials.composer, .systemChromeMaterial)
         XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLinePointSize, 22)
         XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLineWeight, .ultraLight)
+    }
+
+    func testRecordingBarMatchesComposerPill() {
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 240))
+        let overlay = VoiceLockOverlay()
+        host.addSubview(overlay)
+        overlay.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            overlay.topAnchor.constraint(equalTo: host.topAnchor),
+            overlay.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            overlay.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            overlay.bottomAnchor.constraint(equalTo: host.bottomAnchor)
+        ])
+        overlay.apply(theme: .default)
+        overlay.showRecording()
+        host.layoutIfNeeded()
+        let bar = overlay.subviews.first { $0.accessibilityIdentifier == "voice.recording.bar" }
+        XCTAssertEqual(bar?.bounds.height, ConversationTheme.default.layout.recordingBarHeight, accuracy: 0.5)
+        let fill = bar?.subviews.first(where: { $0 is ComposerCapsuleFill })
+        XCTAssertNotNil(fill)
+        XCTAssertEqual(fill?.layer.borderWidth, 0)
+        XCTAssertEqual(fill?.backgroundColor, ConversationTheme.default.colors.composerFill)
     }
 
     func testPlaybackRateCyclesOneOneAndHalfTwo() {

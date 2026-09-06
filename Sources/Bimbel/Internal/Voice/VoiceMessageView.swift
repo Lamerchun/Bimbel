@@ -1,8 +1,10 @@
 import AVFoundation
 import UIKit
 
-/// Voice bubble: waveform · duration · play/pause · speed 1× / 1.5× / 2×.
+/// Voice bubble: play accent circle 32 · waveform 24 · duration · speed chip 1× / 1.5× / 2×.
 final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
+    private let playHost = UIView()
+    private let playFill = ComposerAccentCircle()
     private let play = HitTargetButton(type: .system)
     private let wave = WaveformView()
     private let durationLabel = UILabel()
@@ -13,37 +15,64 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
     private var rate: VoicePlaybackRate = .one
     private var tick: Timer?
     private var objectToken = UUID()
+    private var playSize: NSLayoutConstraint!
+    private var fillSize: NSLayoutConstraint!
+    private var fillHeight: NSLayoutConstraint!
+    private var waveHeight: NSLayoutConstraint!
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         wave.backgroundColor = .clear
         durationLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+
+        playHost.backgroundColor = .clear
+        playFill.isUserInteractionEnabled = false
+        play.backgroundColor = .clear
         play.setImage(UIImage.bimbelComposerLine("play.fill"), for: .normal)
         play.addTarget(self, action: #selector(togglePlay), for: .touchUpInside)
         play.accessibilityLabel = String(localized: "Play voice message")
         play.minimumHitSize = CGSize(width: 44, height: 44)
+        playHost.addSubview(playFill)
+        playHost.addSubview(play)
+        playFill.translatesAutoresizingMaskIntoConstraints = false
+        play.translatesAutoresizingMaskIntoConstraints = false
+        playSize = playHost.widthAnchor.constraint(equalToConstant: 44)
+        fillSize = playFill.widthAnchor.constraint(equalToConstant: 32)
+        fillHeight = playFill.heightAnchor.constraint(equalToConstant: 32)
+        NSLayoutConstraint.activate([
+            playSize,
+            playHost.heightAnchor.constraint(equalToConstant: 44),
+            fillSize,
+            fillHeight,
+            playFill.centerXAnchor.constraint(equalTo: playHost.centerXAnchor),
+            playFill.centerYAnchor.constraint(equalTo: playHost.centerYAnchor),
+            play.topAnchor.constraint(equalTo: playHost.topAnchor),
+            play.leadingAnchor.constraint(equalTo: playHost.leadingAnchor),
+            play.trailingAnchor.constraint(equalTo: playHost.trailingAnchor),
+            play.bottomAnchor.constraint(equalTo: playHost.bottomAnchor)
+        ])
 
-        speedButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .semibold)
         speedButton.addTarget(self, action: #selector(cycleSpeed), for: .touchUpInside)
         speedButton.accessibilityLabel = String(localized: "Playback speed")
         speedButton.minimumHitSize = CGSize(width: 44, height: 32)
+        speedButton.contentEdgeInsets = UIEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
+        speedButton.layer.masksToBounds = true
         applySpeedTitle()
 
-        let stack = UIStackView(arrangedSubviews: [play, wave, durationLabel, speedButton])
+        let stack = UIStackView(arrangedSubviews: [playHost, wave, durationLabel, speedButton])
         stack.axis = .horizontal
         stack.alignment = .center
         stack.spacing = 8
         addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
+        waveHeight = wave.heightAnchor.constraint(equalToConstant: 24)
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
             wave.widthAnchor.constraint(equalToConstant: 96),
-            wave.heightAnchor.constraint(equalToConstant: 22),
-            play.widthAnchor.constraint(equalToConstant: 28),
-            play.heightAnchor.constraint(equalToConstant: 28),
+            waveHeight,
             speedButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 36)
         ])
 
@@ -62,18 +91,31 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         NotificationCenter.default.removeObserver(self)
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        speedButton.layer.cornerRadius = speedButton.bounds.height > 1 ? speedButton.bounds.height / 2 : 10
+        speedButton.layer.cornerCurve = .continuous
+    }
+
     func configure(_ voice: Voice, theme: ConversationTheme) {
         self.voice = voice
         self.theme = theme
-        play.tintColor = theme.colors.accent
-        speedButton.tintColor = theme.colors.accent
-        speedButton.setTitleColor(theme.colors.accent, for: .normal)
-        wave.tintColor = theme.colors.waveformAccent
-        durationLabel.textColor = theme.colors.metadata
+        play.tintColor = theme.colors.sendIcon
+        playFill.backgroundColor = theme.colors.accent
+        speedButton.titleLabel?.font = theme.fonts.voiceSpeed
+        speedButton.setTitleColor(theme.colors.headerSubtitle, for: .normal)
+        speedButton.backgroundColor = theme.colors.secondaryFill
+        wave.tintColor = theme.colors.waveform
+        wave.playedTintColor = theme.colors.waveformPlayed
+        durationLabel.textColor = theme.colors.headerSubtitle
         durationLabel.text = BimbelFormatters.duration(voice.duration)
         wave.setSamples(voice.waveform)
+        fillSize.constant = theme.layout.voicePlaySize
+        fillHeight.constant = theme.layout.voicePlaySize
+        waveHeight.constant = theme.layout.voiceWaveformHeight
         if player?.isPlaying != true {
             applyPlayIcon(playing: false)
+            wave.progress = 0
         }
     }
 
@@ -90,8 +132,10 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         }
         guard let url = voice.fileURL else {
             applyPlayIcon(playing: true)
+            wave.progress = 0.35
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
                 self?.applyPlayIcon(playing: false)
+                self?.wave.progress = 0
             }
             return
         }
@@ -135,11 +179,13 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
 
     private func startTick() {
         tick?.invalidate()
-        tick = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+        tick = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self, let player = self.player, player.isPlaying else { return }
                 let remaining = max(0, player.duration - player.currentTime)
                 self.durationLabel.text = BimbelFormatters.duration(remaining)
+                let total = max(player.duration, 0.001)
+                self.wave.progress = CGFloat(player.currentTime / total)
             }
         }
     }
@@ -150,6 +196,7 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         tick?.invalidate()
         tick = nil
         applyPlayIcon(playing: false)
+        wave.progress = 0
         if resetClock {
             durationLabel.text = BimbelFormatters.duration(voice.duration)
         }

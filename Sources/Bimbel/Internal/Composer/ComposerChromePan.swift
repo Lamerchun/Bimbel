@@ -1,7 +1,8 @@
 import UIKit
 
-/// Composer-Drag hit rules. Interactive dismiss may start on Plus, pill chrome,
-/// or camera — not the Message caret/selection, not hold-mic.
+/// Composer-Drag hit rules. Pan-through only — no visual drag handle.
+/// Interactive dismiss may start on Plus, pill chrome, or camera — not the
+/// Message caret/selection, not hold-mic.
 enum ComposerChromeDismiss {
     static func allowsStart(hitView: UIView?, mic: UIView, textView: UIView) -> Bool {
         guard let hitView else { return false }

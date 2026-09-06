@@ -59,12 +59,27 @@ final class ComposerView: UIView, UITextViewDelegate {
         didSet { chromePan.isEnabled = isDismissPassthroughEnabled }
     }
 
-    /// Voice hold/lock: Plus, field, and camera stay inert. Mic hold keeps the pan.
+    private var recordingChromeLocked = false
+
+    /// Voice hold/lock: Plus / Camera dim to 0.35. Mic stays accent. No drag handle.
     func setRecordingChromeLocked(_ locked: Bool) {
+        recordingChromeLocked = locked
         plusButton.isUserInteractionEnabled = !locked
         stickerButton.isUserInteractionEnabled = !locked
         cameraButton.isUserInteractionEnabled = !locked
         textView.isUserInteractionEnabled = !locked
+        applyRecordingChromeDim()
+    }
+
+    private func applyRecordingChromeDim() {
+        let dim = theme.layout.voiceChromeDim
+        plusButton.alpha = recordingChromeLocked ? dim : 1
+        stickerButton.alpha = recordingChromeLocked ? dim : 1
+        if recordingChromeLocked {
+            cameraButton.alpha = dim
+        } else {
+            cameraButton.alpha = hasSendableContent ? 0 : 1
+        }
     }
 
     var text: String {
@@ -300,8 +315,8 @@ final class ComposerView: UIView, UITextViewDelegate {
         plusButton.accessibilityHint = sheetPresented ? nil : "Long press to open the photo library"
 
         morphAction(sendable: sendable, animated: true)
-        cameraButton.isHidden = sendable
-        cameraButton.alpha = sendable ? 0 : 1
+        cameraButton.isHidden = sendable && !recordingChromeLocked
+        applyRecordingChromeDim()
 
         if let reply {
             replyBanner.isHidden = false

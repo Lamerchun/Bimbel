@@ -116,6 +116,8 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertFalse(chrome?.isEnabled ?? true)
         composer.isDismissPassthroughEnabled = true
         XCTAssertTrue(chrome?.isEnabled ?? false)
+        XCTAssertNil(composer.subviews.first { $0.accessibilityIdentifier?.contains("handle") == true })
+        XCTAssertNil(composer.textView.inputAccessoryView)
     }
 
     func testMicSendFillIsACircleNotTheButtonBackground() {

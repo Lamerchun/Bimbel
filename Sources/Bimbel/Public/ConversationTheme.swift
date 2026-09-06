@@ -72,6 +72,8 @@ public struct ConversationTheme: Sendable {
         public var fabFill: UIColor
         public var fabIcon: UIColor
         public var waveform: UIColor
+        /// SLICE-3-TOKENS: played waveform bars. Accent @ 1.0.
+        public var waveformPlayed: UIColor
         /// Inbox mute glyph. Ship 1: tertiary.
         public var inboxMute: UIColor
         /// Inbox unread pill text. Ship 1: white on accent fill.
@@ -107,7 +109,8 @@ public struct ConversationTheme: Sendable {
             waveform: UIColor,
             inboxMute: UIColor = .tertiaryLabel,
             inboxUnreadText: UIColor = .white,
-            inboxDraft: UIColor = .secondaryLabel
+            inboxDraft: UIColor = .secondaryLabel,
+            waveformPlayed: UIColor? = nil
         ) {
             self.wallpaper = wallpaper
             self.outgoingBubble = outgoingBubble
@@ -134,6 +137,7 @@ public struct ConversationTheme: Sendable {
             self.fabFill = fabFill
             self.fabIcon = fabIcon
             self.waveform = waveform
+            self.waveformPlayed = waveformPlayed ?? accent
             self.inboxMute = inboxMute
             self.inboxUnreadText = inboxUnreadText
             self.inboxDraft = inboxDraft
@@ -324,6 +328,8 @@ public struct ConversationTheme: Sendable {
         public var sheet: CGFloat
         /// Approval rail thumbs. Ship 4 / SLICE-2-TOKENS §3.
         public var approvalThumb: CGFloat
+        /// SLICE-3-TOKENS: lock capsule radius (capsule / 22).
+        public var lockCapsule: CGFloat
 
         public init(
             bubble: CGFloat = 22,
@@ -334,7 +340,8 @@ public struct ConversationTheme: Sendable {
             composerControl: CGFloat = 22,
             chip: CGFloat = 12,
             sheet: CGFloat = 28,
-            approvalThumb: CGFloat = 12
+            approvalThumb: CGFloat = 12,
+            lockCapsule: CGFloat = 22
         ) {
             self.bubble = bubble
             self.bubbleJoin = bubbleJoin
@@ -345,6 +352,7 @@ public struct ConversationTheme: Sendable {
             self.chip = chip
             self.sheet = sheet
             self.approvalThumb = approvalThumb
+            self.lockCapsule = lockCapsule
         }
 
         public static let bimbel = Radii()
@@ -402,9 +410,19 @@ public struct ConversationTheme: Sendable {
         public var headerIcon: CGFloat
         /// Draw-editor stroke width. §3: ~4, one color = accent.
         public var drawStrokeWidth: CGFloat
-        /// Hold-mic: slide left this far to cancel.
+        /// SLICE-3-TOKENS: recording bar matches the composer pill (~40–44).
+        public var recordingBarHeight: CGFloat
+        /// SLICE-3-TOKENS: lock zone above the composer top.
+        public var voiceLockZone: CGFloat
+        /// SLICE-3-TOKENS: play control on a voice bubble.
+        public var voicePlaySize: CGFloat
+        /// SLICE-3-TOKENS: waveform height in a voice bubble (and the hold bar).
+        public var voiceWaveformHeight: CGFloat
+        /// SLICE-3-TOKENS: Plus / Camera dim while the mic is held.
+        public var voiceChromeDim: CGFloat
+        /// Hold-mic: slide left this far to cancel. SLICE-3-TOKENS: 72.
         public var voiceCancelTranslation: CGFloat
-        /// Hold-mic: slide up this far to lock.
+        /// Hold-mic: slide up this far to lock. Same distance as `voiceLockZone`.
         public var voiceLockTranslation: CGFloat
         /// Tight spacing inside a time cluster. Same value as `clusterGap`. Not `grouping.maxGap`.
         public var groupingInnerSpacing: CGFloat {
@@ -447,8 +465,13 @@ public struct ConversationTheme: Sendable {
             approvalThumbGap: CGFloat = 8,
             headerIcon: CGFloat = 22,
             drawStrokeWidth: CGFloat = 4,
-            voiceCancelTranslation: CGFloat = 80,
-            voiceLockTranslation: CGFloat = 80
+            recordingBarHeight: CGFloat = 40,
+            voiceLockZone: CGFloat = 56,
+            voicePlaySize: CGFloat = 32,
+            voiceWaveformHeight: CGFloat = 24,
+            voiceChromeDim: CGFloat = 0.35,
+            voiceCancelTranslation: CGFloat = 72,
+            voiceLockTranslation: CGFloat = 56
         ) {
             self.bubbleMaxWidthRatio = bubbleMaxWidthRatio
             self.sequenceGap = sequenceGap
@@ -479,6 +502,11 @@ public struct ConversationTheme: Sendable {
             self.approvalThumbGap = approvalThumbGap
             self.headerIcon = headerIcon
             self.drawStrokeWidth = drawStrokeWidth
+            self.recordingBarHeight = recordingBarHeight
+            self.voiceLockZone = voiceLockZone
+            self.voicePlaySize = voicePlaySize
+            self.voiceWaveformHeight = voiceWaveformHeight
+            self.voiceChromeDim = voiceChromeDim
             self.voiceCancelTranslation = voiceCancelTranslation
             self.voiceLockTranslation = voiceLockTranslation
         }
@@ -505,6 +533,10 @@ public struct ConversationTheme: Sendable {
         public var inboxUnread: UIFont
         /// Approval text overlay. Same size as bubble body.
         public var bubbleBody: UIFont
+        /// SLICE-3-TOKENS: slide-to-cancel hint. caption1.
+        public var recordingHint: UIFont
+        /// SLICE-3-TOKENS: voice speed chip. caption2.
+        public var voiceSpeed: UIFont
 
         public init(
             body: UIFont = .systemFont(ofSize: 16, weight: .regular),
@@ -518,7 +550,9 @@ public struct ConversationTheme: Sendable {
             inboxTime: UIFont = .preferredFont(forTextStyle: .caption1),
             inboxPreview: UIFont = .preferredFont(forTextStyle: .subheadline),
             inboxUnread: UIFont = Self.ship1InboxUnread,
-            bubbleBody: UIFont = .systemFont(ofSize: 16, weight: .regular)
+            bubbleBody: UIFont = .systemFont(ofSize: 16, weight: .regular),
+            recordingHint: UIFont = .preferredFont(forTextStyle: .caption1),
+            voiceSpeed: UIFont = .preferredFont(forTextStyle: .caption2)
         ) {
             self.body = body
             self.metadata = metadata
@@ -532,6 +566,8 @@ public struct ConversationTheme: Sendable {
             self.inboxPreview = inboxPreview
             self.inboxUnread = inboxUnread
             self.bubbleBody = bubbleBody
+            self.recordingHint = recordingHint
+            self.voiceSpeed = voiceSpeed
         }
 
         /// Ship 1 inbox title: headline size, semibold. Public so default arguments
@@ -552,6 +588,10 @@ public struct ConversationTheme: Sendable {
 }
 
 extension ConversationTheme.Colors {
-    /// Thang: waveform fill is accent at ~60% until he expands the token.
+    /// SLICE-3-TOKENS: waveform = accent @ 0.6.
     public var waveformAccent: UIColor { accent.withAlphaComponent(0.6) }
+    /// SLICE-3-TOKENS: waveformPlayed = accent @ 1.0.
+    public var waveformPlayedAccent: UIColor { accent }
+    /// Speed-chip fill. Secondary system fill until Thang names a dedicated token.
+    public var secondaryFill: UIColor { .secondarySystemFill }
 }
