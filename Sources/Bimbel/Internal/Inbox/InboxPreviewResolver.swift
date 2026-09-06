@@ -64,7 +64,7 @@ enum InboxPreviewResolver {
                 string: String(localized: "Draft: "),
                 attributes: [
                     .font: italic,
-                    .foregroundColor: theme.colors.accent
+                    .foregroundColor: theme.colors.inboxDraft
                 ]
             )
             draft.append(NSAttributedString(string: text, attributes: [
@@ -77,7 +77,7 @@ enum InboxPreviewResolver {
                 string: String(localized: "Draft"),
                 attributes: [
                     .font: italic,
-                    .foregroundColor: theme.colors.accent
+                    .foregroundColor: theme.colors.inboxDraft
                 ]
             )
             draft.append(NSAttributedString(string: "  ", attributes: [

@@ -90,6 +90,7 @@ open class ConversationViewController: UIViewController {
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         NavigationChrome.hideSystemBar(in: self, animated: animated)
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
     }
 
     public override func viewWillDisappear(_ animated: Bool) {

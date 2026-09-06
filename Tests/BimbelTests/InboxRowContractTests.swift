@@ -110,6 +110,8 @@ final class InboxRowContractTests: XCTestCase {
         XCTAssertEqual(theme.fonts.inboxUnread.pointSize, UIFont.preferredFont(forTextStyle: .caption2).pointSize)
         XCTAssertEqual(theme.colors.inboxMute, UIColor.tertiaryLabel)
         XCTAssertEqual(theme.colors.inboxUnreadText, UIColor.white)
+        XCTAssertEqual(theme.colors.inboxDraft, UIColor.secondaryLabel)
+        XCTAssertNotEqual(theme.colors.inboxDraft, theme.colors.accent)
         XCTAssertEqual(InboxSwipeChrome.pinFill, UIColor.systemGray)
         XCTAssertEqual(InboxSwipeChrome.muteFill, UIColor.systemGray)
         XCTAssertEqual(InboxSwipeChrome.deleteFill, UIColor.systemRed)

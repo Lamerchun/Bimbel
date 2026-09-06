@@ -22,6 +22,7 @@ open class InboxViewController: UIViewController {
     private var snapshot = InboxSnapshot(items: [])
     private var query = ""
     private var unreadOnly = false
+    private var didPreferTablePanOverPop = false
 
     public init(
         dataSource: any InboxDataSource,
@@ -42,7 +43,6 @@ open class InboxViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         NavigationChrome.hideSystemBar(in: self, animated: false)
-        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         definesPresentationContext = true
         view.backgroundColor = theme.colors.wallpaper
         configureSearch()
@@ -55,6 +55,7 @@ open class InboxViewController: UIViewController {
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         NavigationChrome.hideSystemBar(in: self, animated: animated)
+        preferTablePanOverInteractivePop()
     }
 
     public override func viewDidLayoutSubviews() {
@@ -219,6 +220,22 @@ open class InboxViewController: UIViewController {
     private func item(at indexPath: IndexPath) -> InboxItem? {
         guard let id = diffable.itemIdentifier(for: indexPath) else { return nil }
         return snapshot.items.first(where: { $0.id == id })
+    }
+
+    /// The nav pop gesture sits on the leading edge and swallows Read/Pin.
+    /// Disable pop when this list is the root. If the host pushed the inbox,
+    /// prefer the table pan so leading swipe still opens.
+    private func preferTablePanOverInteractivePop() {
+        guard let nav = navigationController,
+              let pop = nav.interactivePopGestureRecognizer
+        else { return }
+        if nav.viewControllers.first === self {
+            pop.isEnabled = false
+            return
+        }
+        guard !didPreferTablePanOverPop else { return }
+        pop.require(toFail: tableView.panGestureRecognizer)
+        didPreferTablePanOverPop = true
     }
 }
 

@@ -109,6 +109,15 @@ final class InboxPreviewResolverTests: XCTestCase {
         XCTAssertTrue(draftText.hasPrefix("Draft:"))
         XCTAssertTrue(draftText.contains("Ask about Saturday"))
 
+        let attributed = InboxPreviewResolver.attributedPreview(for: draft, theme: .default)
+        var prefixRange = NSRange(location: 0, length: 0)
+        let prefixColor = attributed.attribute(.foregroundColor, at: 0, effectiveRange: &prefixRange) as? UIColor
+        XCTAssertEqual(prefixColor, ConversationTheme.default.colors.inboxDraft)
+        XCTAssertEqual(prefixColor, UIColor.secondaryLabel)
+        XCTAssertNotEqual(prefixColor, ConversationTheme.default.colors.accent)
+        let prefixFont = attributed.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+        XCTAssertTrue(prefixFont?.fontDescriptor.symbolicTraits.contains(.traitItalic) == true)
+
         let group = InboxItem(
             id: "g",
             title: "Design",

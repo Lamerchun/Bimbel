@@ -76,6 +76,8 @@ public struct ConversationTheme: Sendable {
         public var inboxMute: UIColor
         /// Inbox unread pill text. Ship 1: white on accent fill.
         public var inboxUnreadText: UIColor
+        /// Inbox `Draft:` prefix. Ship 1: secondary italic — not accent.
+        public var inboxDraft: UIColor
 
         public init(
             wallpaper: UIColor,
@@ -104,7 +106,8 @@ public struct ConversationTheme: Sendable {
             fabIcon: UIColor,
             waveform: UIColor,
             inboxMute: UIColor = .tertiaryLabel,
-            inboxUnreadText: UIColor = .white
+            inboxUnreadText: UIColor = .white,
+            inboxDraft: UIColor = .secondaryLabel
         ) {
             self.wallpaper = wallpaper
             self.outgoingBubble = outgoingBubble
@@ -133,6 +136,7 @@ public struct ConversationTheme: Sendable {
             self.waveform = waveform
             self.inboxMute = inboxMute
             self.inboxUnreadText = inboxUnreadText
+            self.inboxDraft = inboxDraft
         }
 
         public static let bimbel = Colors(
