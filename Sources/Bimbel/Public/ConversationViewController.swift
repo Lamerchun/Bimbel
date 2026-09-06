@@ -27,7 +27,9 @@ open class ConversationViewController: UIViewController {
     private lazy var collectionView = UICollectionView(frame: .zero, collectionViewLayout: chatLayout)
     private var diffable: UICollectionViewDiffableDataSource<ChatSection, ChatRow>!
     private let headerView = ConversationHeaderView()
+    private let bottomChrome = UIStackView()
     private let composer = ComposerView()
+    private let selectionToolbar = ConversationSelectionToolbar()
     private let keyboardTracker = ComposerKeyboardTracker()
     private let attachmentSheet = AttachmentSheetView()
     private let voice = VoiceRecordingController()
@@ -43,6 +45,8 @@ open class ConversationViewController: UIViewController {
     private var fabAboveComposer: NSLayoutConstraint?
     private var isLoadingOlder = false
     private var isNearBottom = true
+    private var isSelecting = false
+    private var selectedIDs: Set<MessageID> = []
     private let reactionPalette = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 
     public init(
@@ -121,6 +125,11 @@ open class ConversationViewController: UIViewController {
     public func apply(_ snapshot: ConversationSnapshot, animatingDifferences: Bool) {
         self.snapshot = snapshot
         rows = MessageGrouping.rows(from: snapshot, maxGap: theme.grouping.maxGap)
+        if isSelecting {
+            let live = Set(snapshot.messages.map(\.id))
+            selectedIDs = selectedIDs.intersection(live)
+            refreshSelectionChrome()
+        }
         var next = NSDiffableDataSourceSnapshot<ChatSection, ChatRow>()
         next.appendSections([.thread])
         next.appendItems(rows, toSection: .thread)
@@ -160,7 +169,7 @@ open class ConversationViewController: UIViewController {
             top: theme.layout.listComposerGap,
             left: 0,
             bottom: ComposerKeyboardTracker.layoutBottomPadding(
-                composerHeight: composer.bounds.height,
+                composerHeight: bottomChrome.bounds.height,
                 listComposerGap: theme.layout.listComposerGap
             ),
             right: 0
@@ -186,8 +195,13 @@ open class ConversationViewController: UIViewController {
             height
         ])
 
-        view.addSubview(composer)
-        composer.translatesAutoresizingMaskIntoConstraints = false
+        bottomChrome.axis = .vertical
+        bottomChrome.alignment = .fill
+        bottomChrome.translatesAutoresizingMaskIntoConstraints = false
+        bottomChrome.addArrangedSubview(composer)
+        bottomChrome.addArrangedSubview(selectionToolbar)
+        selectionToolbar.isHidden = true
+        view.addSubview(bottomChrome)
         updateBottomBar()
 
         view.addSubview(voiceOverlay)
@@ -201,7 +215,7 @@ open class ConversationViewController: UIViewController {
         fab.isHidden = true
         view.addSubview(fab)
         fab.translatesAutoresizingMaskIntoConstraints = false
-        fabAboveComposer = fab.bottomAnchor.constraint(equalTo: composer.topAnchor, constant: -10)
+        fabAboveComposer = fab.bottomAnchor.constraint(equalTo: bottomChrome.topAnchor, constant: -10)
         NSLayoutConstraint.activate([
             fab.widthAnchor.constraint(equalToConstant: 44),
             fab.heightAnchor.constraint(equalToConstant: 44),
@@ -214,13 +228,13 @@ open class ConversationViewController: UIViewController {
     /// `keyboardLayoutGuide` when `shouldAttachToKeyboardLayoutGuide` is true.
     private func updateBottomBar() {
         NSLayoutConstraint.deactivate(bottomBarConstraints)
-        let leading = composer.leadingAnchor.constraint(equalTo: view.leadingAnchor)
-        let trailing = composer.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        let leading = bottomChrome.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+        let trailing = bottomChrome.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         let bottom: NSLayoutConstraint
         if composer.shouldAttachToKeyboardLayoutGuide {
-            bottom = composer.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
+            bottom = bottomChrome.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
         } else {
-            bottom = composer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            bottom = bottomChrome.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         }
         bottomBarConstraints = [leading, trailing, bottom]
         NSLayoutConstraint.activate(bottomBarConstraints)
@@ -255,7 +269,10 @@ open class ConversationViewController: UIViewController {
                     decoration: decoration,
                     participant: self.dataSource.participant(id: message.senderID),
                     theme: self.theme,
-                    width: collectionView.bounds.width
+                    width: collectionView.bounds.width,
+                    isSelecting: self.isSelecting,
+                    isSelected: self.selectedIDs.contains(message.id),
+                    allowsReplySwipe: !self.isSelecting
                 )
                 cell.onReply = { [weak self] in self?.beginReply($0) }
                 cell.onOpenURL = { [weak self] in self?.actions.onOpenURL?($0) ?? UIApplication.shared.open($0) }
@@ -266,6 +283,7 @@ open class ConversationViewController: UIViewController {
 
     private func configureHeader() {
         headerView.onBack = { [weak self] in self?.actions.onBack?() }
+        headerView.onCancelSelection = { [weak self] in self?.exitSelection() }
         headerView.onTitleTap = { [weak self] in self?.actions.onHeaderTap?() }
         headerView.onVideo = { [weak self] in self?.actions.onVideo?() }
         headerView.onCall = { [weak self] in self?.actions.onCall?() }
@@ -274,6 +292,8 @@ open class ConversationViewController: UIViewController {
 
     private func configureComposer() {
         composer.delegate = self
+        selectionToolbar.onForward = { [weak self] in self?.forwardSelected() }
+        selectionToolbar.onDelete = { [weak self] in self?.deleteSelected() }
         attachmentSheet.onAction = { [weak self] in self?.handleAttachment($0) }
         attachmentSheet.onPickAsset = { [weak self] in self?.stageAsset($0) }
         composer.textView.inputView = nil
@@ -283,8 +303,8 @@ open class ConversationViewController: UIViewController {
         guard !didBindKeyboard else { return }
         didBindKeyboard = true
         keyboardTracker.listComposerGap = theme.layout.listComposerGap
-        composer.setContentHuggingPriority(.required, for: .vertical)
-        composer.setContentCompressionResistancePriority(.required, for: .vertical)
+        bottomChrome.setContentHuggingPriority(.required, for: .vertical)
+        bottomChrome.setContentCompressionResistancePriority(.required, for: .vertical)
         keyboardTracker.onApplied = { [weak self] _, layoutBottom, flushingLayout in
             self?.applyComposerLayoutPadding(layoutBottom)
             // `flushingLayout` is only true outside collection callbacks (crash contract).
@@ -292,7 +312,7 @@ open class ConversationViewController: UIViewController {
         }
         keyboardTracker.attach(
             host: view,
-            composer: composer,
+            composer: bottomChrome,
             collectionView: collectionView
         )
     }
@@ -328,12 +348,16 @@ open class ConversationViewController: UIViewController {
         wallpaper.backgroundColor = DoodleWallpaper.color(base: theme.colors.wallpaper)
         view.backgroundColor = theme.colors.wallpaper
         headerView.apply(content: header, theme: theme)
+        if isSelecting {
+            headerView.applySelectionCount(selectedIDs.count)
+        }
         composer.apply(
             theme: theme,
             sendable: isSendable,
             sheetPresented: composer.textView.inputView != nil,
             reply: replyTarget
         )
+        selectionToolbar.apply(theme: theme, selectedCount: selectedIDs.count)
         attachmentSheet.apply(theme: theme)
         fab.backgroundColor = theme.colors.fabFill
         fab.tintColor = theme.colors.fabIcon
@@ -343,7 +367,7 @@ open class ConversationViewController: UIViewController {
             top: theme.layout.listComposerGap,
             left: 0,
             bottom: ComposerKeyboardTracker.layoutBottomPadding(
-                composerHeight: composer.bounds.height,
+                composerHeight: bottomChrome.bounds.height,
                 listComposerGap: theme.layout.listComposerGap
             ),
             right: 0
@@ -596,6 +620,7 @@ extension ConversationViewController: UICollectionViewDelegate {
         contextMenuConfigurationForItemAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
+        guard !isSelecting else { return nil }
         guard indexPath.item < rows.count, case .message(let message, _) = rows[indexPath.item] else { return nil }
         if case .system = message.kind { return nil }
         return UIContextMenuConfiguration(identifier: message.id as NSString, previewProvider: nil) { [weak self] _ in
@@ -630,20 +655,113 @@ extension ConversationViewController: UICollectionViewDelegate {
         return UITargetedPreview(view: cell.previewTarget, parameters: params)
     }
 
+    public func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        collectionView.deselectItem(at: indexPath, animated: false)
+        guard isSelecting,
+              indexPath.item < rows.count,
+              case .message(let message, _) = rows[indexPath.item]
+        else { return }
+        if case .system = message.kind { return }
+        toggleSelection(message.id)
+    }
+
     private func menu(for message: Message) -> UIMenu {
         let rail = UIMenu(title: "", options: .displayInline, children: reactionPalette.map { emoji in
             UIAction(title: emoji) { [weak self] _ in self?.actions.onReaction?(message, emoji) }
         })
-        var items: [UIMenuElement] = [rail]
-        items.append(UIAction(title: "Reply", image: UIImage(systemName: "arrowshape.turn.up.left")) { [weak self] _ in
-            self?.beginReply(message)
-        })
-        if case .text(let body, _) = message.kind {
-            items.append(UIAction(title: "Copy", image: UIImage(systemName: "doc.on.doc")) { _ in
-                UIPasteboard.general.string = body
-            })
+        let actions = ConversationMessageMenu.items(
+            for: message,
+            allowsEdit: self.actions.allowsEdit(message)
+        ).map { item in
+            UIAction(
+                title: item.title,
+                image: UIImage(systemName: item.systemImage),
+                attributes: item.isDestructive ? .destructive : []
+            ) { [weak self] _ in
+                self?.performMenu(item, on: message)
+            }
         }
-        return UIMenu(children: items)
+        return UIMenu(children: [rail] + actions)
+    }
+
+    private func performMenu(_ item: ConversationMessageMenuItem, on message: Message) {
+        switch item {
+        case .reply:
+            beginReply(message)
+        case .copy:
+            if case .text(let body, _) = message.kind {
+                UIPasteboard.general.string = body
+            }
+        case .save:
+            actions.onSaveMedia?(message)
+        case .forward:
+            actions.onForward?([message])
+        case .delete:
+            actions.onDeleteMessages?([message])
+        case .select:
+            enterSelection(seed: message.id)
+        case .edit:
+            actions.onEdit?(message)
+            if case .text(let body, _) = message.kind {
+                composer.text = body
+                presentKeyboard()
+            }
+        }
+    }
+
+    private func enterSelection(seed: MessageID) {
+        isSelecting = true
+        selectedIDs = [seed]
+        composer.textView.resignFirstResponder()
+        composer.isHidden = true
+        selectionToolbar.isHidden = false
+        refreshSelectionChrome()
+        collectionView.reloadData()
+        keyboardTracker.syncListInsets(flushingLayout: true)
+    }
+
+    private func exitSelection() {
+        isSelecting = false
+        selectedIDs = []
+        composer.isHidden = false
+        selectionToolbar.isHidden = true
+        headerView.applySelectionCount(nil)
+        refreshSelectionChrome()
+        collectionView.reloadData()
+        keyboardTracker.syncListInsets(flushingLayout: true)
+    }
+
+    private func toggleSelection(_ id: MessageID) {
+        if selectedIDs.contains(id) {
+            selectedIDs.remove(id)
+        } else {
+            selectedIDs.insert(id)
+        }
+        refreshSelectionChrome()
+        collectionView.reloadData()
+    }
+
+    private func selectedMessages() -> [Message] {
+        snapshot.messages.filter { selectedIDs.contains($0.id) }
+    }
+
+    private func forwardSelected() {
+        let messages = selectedMessages()
+        guard !messages.isEmpty else { return }
+        actions.onForward?(messages)
+        exitSelection()
+    }
+
+    private func deleteSelected() {
+        let messages = selectedMessages()
+        guard !messages.isEmpty else { return }
+        actions.onDeleteMessages?(messages)
+        exitSelection()
+    }
+
+    private func refreshSelectionChrome() {
+        selectionToolbar.apply(theme: theme, selectedCount: selectedIDs.count)
+        headerView.applySelectionCount(isSelecting ? selectedIDs.count : nil)
     }
 }
 

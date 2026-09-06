@@ -7,6 +7,7 @@ final class MessageCollectionCell: UICollectionViewCell {
     var onOpenURL: ((URL) -> Void)?
     var previewTarget: UIView { bubble }
 
+    private let selectMark = UIImageView()
     private let avatarView = UIImageView()
     private let nameLabel = UILabel()
     private let bubble = BubbleBackgroundView()
@@ -24,6 +25,7 @@ final class MessageCollectionCell: UICollectionViewCell {
     private let bubbleColumn = UIStackView()
     private let hStack = UIStackView()
     private var current: Message?
+    private var allowsReplySwipe = true
     private var theme = ConversationTheme.default
     private var swipeOffset: CGFloat = 0
     private var replyTriggered = false
@@ -107,9 +109,13 @@ final class MessageCollectionCell: UICollectionViewCell {
         bubbleColumn.addArrangedSubview(bubble)
         bubbleColumn.addArrangedSubview(reactions)
 
+        selectMark.contentMode = .scaleAspectFit
+        selectMark.setContentHuggingPriority(.required, for: .horizontal)
+
         hStack.axis = .horizontal
         hStack.alignment = .top
         hStack.spacing = 6
+        hStack.addArrangedSubview(selectMark)
         hStack.addArrangedSubview(avatarView)
         hStack.addArrangedSubview(bubbleColumn)
         contentView.addSubview(hStack)
@@ -118,6 +124,8 @@ final class MessageCollectionCell: UICollectionViewCell {
         avatarWidth = avatarView.widthAnchor.constraint(equalToConstant: 28)
         avatarHeight = avatarView.heightAnchor.constraint(equalToConstant: 28)
         NSLayoutConstraint.activate([
+            selectMark.widthAnchor.constraint(equalToConstant: 22),
+            selectMark.heightAnchor.constraint(equalToConstant: 22),
             avatarWidth,
             avatarHeight,
             hStack.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -143,10 +151,14 @@ final class MessageCollectionCell: UICollectionViewCell {
         decoration: MessageDecoration,
         participant: Participant?,
         theme: ConversationTheme,
-        width: CGFloat
+        width: CGFloat,
+        isSelecting: Bool = false,
+        isSelected: Bool = false,
+        allowsReplySwipe: Bool = true
     ) {
         current = message
         self.theme = theme
+        self.allowsReplySwipe = allowsReplySwipe && !isSelecting
         bubbleWidth.isActive = false
         bubbleWidth = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: max(160, width * theme.layout.bubbleMaxWidthRatio))
         bubbleWidth.isActive = true
@@ -158,6 +170,13 @@ final class MessageCollectionCell: UICollectionViewCell {
         bubbleColumn.alignment = outgoing ? .trailing : .leading
         // Group avatar sits on the last bubble of the cluster.
         hStack.alignment = decoration.reservesIncomingAvatarGutter ? .bottom : .top
+
+        selectMark.isHidden = !isSelecting
+        if isSelecting {
+            let name = isSelected ? "checkmark.circle.fill" : "circle"
+            selectMark.image = UIImage(systemName: name)
+            selectMark.tintColor = isSelected ? theme.colors.accent : theme.colors.metadata
+        }
 
         nameLabel.isHidden = !decoration.showsIncomingName
         nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
@@ -271,7 +290,7 @@ final class MessageCollectionCell: UICollectionViewCell {
     }
 
     private func performReplyPan(_ gesture: UIPanGestureRecognizer) {
-        guard let message = current else { return }
+        guard let message = current, allowsReplySwipe else { return }
         if case .system = message.kind { return }
         let translation = gesture.translation(in: contentView)
         switch gesture.state {
@@ -309,6 +328,8 @@ final class MessageCollectionCell: UICollectionViewCell {
         overlayMetadata.isHidden = true
         paddedBody.isHidden = false
         nameLabel.isHidden = true
+        selectMark.isHidden = true
+        allowsReplySwipe = true
         avatarView.alpha = 1
     }
 

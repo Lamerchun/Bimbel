@@ -2,6 +2,7 @@ import UIKit
 
 final class ConversationHeaderView: UIView {
     var onBack: (() -> Void)?
+    var onCancelSelection: (() -> Void)?
     var onTitleTap: (() -> Void)?
     var onVideo: (() -> Void)?
     var onCall: (() -> Void)?
@@ -18,7 +19,10 @@ final class ConversationHeaderView: UIView {
     private let videoButton = HitTargetButton(type: .system)
     private let callButton = HitTargetButton(type: .system)
     private var heightConstraint: NSLayoutConstraint?
+    private var avatarWidth: NSLayoutConstraint?
     private var theme = ConversationTheme.default
+    private var header = HeaderContent(title: "")
+    private var selectionCount: Int?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -100,8 +104,10 @@ final class ConversationHeaderView: UIView {
         }
 
         heightConstraint = content.heightAnchor.constraint(equalToConstant: 44)
+        avatarWidth = avatarView.widthAnchor.constraint(equalToConstant: 32)
 
         NSLayoutConstraint.activate([
+            avatarWidth!,
             content.leadingAnchor.constraint(equalTo: leadingAnchor),
             content.trailingAnchor.constraint(equalTo: trailingAnchor),
             content.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -119,7 +125,6 @@ final class ConversationHeaderView: UIView {
 
             avatarView.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2),
             avatarView.centerYAnchor.constraint(equalTo: content.centerYAnchor),
-            avatarView.widthAnchor.constraint(equalToConstant: 32),
             avatarView.heightAnchor.constraint(equalToConstant: 32),
 
             callButton.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -6),
@@ -144,19 +149,25 @@ final class ConversationHeaderView: UIView {
         identity.setContentHuggingPriority(.defaultLow, for: .horizontal)
     }
 
+    func applySelectionCount(_ count: Int?) {
+        selectionCount = count
+        apply(content: header, theme: theme)
+    }
+
     func apply(content header: HeaderContent, theme: ConversationTheme) {
+        self.header = header
         self.theme = theme
         applyGlass(theme)
         tintColor = theme.colors.headerTitle
         titleLabel.font = theme.fonts.headerTitle
         titleLabel.textColor = theme.colors.headerTitle
-        titleLabel.text = header.title
+        titleLabel.text = selectionTitle(header.title)
         subtitleLabel.font = theme.fonts.headerSubtitle
         subtitleLabel.textColor = theme.colors.headerSubtitle
         subtitleLabel.text = header.subtitle
-        subtitleLabel.isHidden = (header.subtitle ?? "").isEmpty && !header.isTyping
+        subtitleLabel.isHidden = selectionCount != nil || ((header.subtitle ?? "").isEmpty && !header.isTyping)
 
-        typingDots.isHidden = !header.isTyping
+        typingDots.isHidden = selectionCount != nil || !header.isTyping
         typingDots.tintColor = theme.colors.headerSubtitle
         if header.isTyping { typingDots.start() } else { typingDots.stop() }
 
@@ -184,16 +195,27 @@ final class ConversationHeaderView: UIView {
             badgeLabel.isHidden = true
         }
 
-        if header.showsUnifiedCall {
+        let selecting = selectionCount != nil
+        avatarView.isHidden = selecting
+        if selecting {
+            videoButton.isHidden = true
+            callButton.isHidden = true
+            backButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+            backButton.accessibilityLabel = String(localized: "Cancel")
+        } else if header.showsUnifiedCall {
             videoButton.isHidden = true
             callButton.isHidden = false
             callButton.setImage(UIImage(systemName: "phone.fill"), for: .normal)
             callButton.accessibilityLabel = "Call"
+            backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
+            backButton.accessibilityLabel = "Back"
         } else {
             videoButton.isHidden = !header.showsVideo
             callButton.isHidden = !header.showsCall
             callButton.setImage(UIImage(systemName: "phone"), for: .normal)
             videoButton.setImage(UIImage(systemName: "video"), for: .normal)
+            backButton.setImage(UIImage(systemName: "chevron.backward"), for: .normal)
+            backButton.accessibilityLabel = "Back"
         }
 
         backButton.tintColor = theme.colors.headerTitle
@@ -213,7 +235,19 @@ final class ConversationHeaderView: UIView {
         }
     }
 
-    @objc private func tapBack() { onBack?() }
+    private func selectionTitle(_ fallback: String) -> String {
+        guard let selectionCount else { return fallback }
+        if selectionCount == 0 { return String(localized: "Select") }
+        return "\(selectionCount)"
+    }
+
+    @objc private func tapBack() {
+        if selectionCount != nil {
+            onCancelSelection?()
+            return
+        }
+        onBack?()
+    }
     @objc private func tapTitle() { onTitleTap?() }
     @objc private func tapVideo() { onVideo?() }
     @objc private func tapCall() { onCall?() }

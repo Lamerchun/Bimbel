@@ -236,6 +236,33 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         updateItem(id) { $0.isMuted.toggle() }
     }
 
+    func deleteMessages(_ messages: [Message], in conversationID: ConversationID) {
+        let ids = Set(messages.map(\.id))
+        threads[conversationID]?.removeAll { ids.contains($0.id) }
+        if let last = threads[conversationID]?.last(where: {
+            if case .system = $0.kind { return false }
+            return true
+        }) {
+            updateItem(conversationID) { item in
+                item.preview = Self.inboxPreview(for: last)
+                item.timestamp = last.sentAt
+                item.lastOutgoingDelivery = last.isOutgoing ? last.delivery : nil
+                item.previewSenderName = last.isOutgoing ? nil : item.previewSenderName
+            }
+        }
+    }
+
+    private static func inboxPreview(for message: Message) -> String {
+        switch message.kind {
+        case .text(let body, _): return body
+        case .image: return InboxAttachmentLabel.photo
+        case .video: return InboxAttachmentLabel.video
+        case .voice: return InboxAttachmentLabel.voice
+        case .document(let document): return document.name
+        case .system(let text): return text
+        }
+    }
+
     func delete(_ id: ConversationID) {
         items.removeAll { $0.id == id }
         threads[id] = nil

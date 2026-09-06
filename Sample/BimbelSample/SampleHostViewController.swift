@@ -160,6 +160,25 @@ final class SampleHostViewController: UIViewController {
                 self.store.addReaction(to: message.id, in: id, emoji: emoji)
                 self.conversation?.apply(self.store.snapshot(in: id), animatingDifferences: true)
             },
+            onForward: { _ in },
+            onDeleteMessages: { [weak self] messages in
+                guard let self else { return }
+                self.store.deleteMessages(messages, in: id)
+                self.conversation?.apply(self.store.snapshot(in: id), animatingDifferences: true)
+                self.refreshInbox()
+            },
+            onSaveMedia: { message in
+                switch message.kind {
+                case .image(let media), .video(let media):
+                    if case .data(let data) = media.source, let image = UIImage(data: data) {
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    }
+                default:
+                    break
+                }
+            },
+            canEdit: { $0.isOutgoing },
+            onEdit: { _ in },
             onRequestLocation: {
                 CLLocationCoordinate2D(latitude: 52.52, longitude: 13.405)
             }
