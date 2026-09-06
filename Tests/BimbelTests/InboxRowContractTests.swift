@@ -118,12 +118,20 @@ final class InboxRowContractTests: XCTestCase {
     }
 
     func testTypingUpdatesPreviewWithoutNewKind() {
-        var item = InboxItem(id: "m", title: "Mira", preview: "Did you lock the studio?", timestamp: Date())
+        var item = InboxItem(
+            id: "m",
+            title: "Mira",
+            preview: "On my way.",
+            timestamp: Date(),
+            lastOutgoingDelivery: .read
+        )
         let cell = InboxRowCell(style: .default, reuseIdentifier: InboxRowCell.reuseID)
         cell.configure(item: item, theme: .default, hidesTrailingAccessories: false)
-        XCTAssertEqual(cell.previewAttributedText?.string, "Did you lock the studio?")
+        XCTAssertEqual(cell.previewAttributedText?.string, "On my way.")
+        XCTAssertTrue(cell.showsOutgoingStatus)
         cell.applyTyping(true)
         XCTAssertEqual(cell.previewAttributedText?.string, "Typing…")
+        XCTAssertFalse(cell.showsOutgoingStatus)
         item.isTyping = true
         XCTAssertEqual(InboxPreviewResolver.kind(for: item), .typing)
     }

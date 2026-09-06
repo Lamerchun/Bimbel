@@ -14,6 +14,7 @@ final class InboxRowCell: UITableViewCell {
     private var previewHeightConstraint: NSLayoutConstraint?
     private var theme = ConversationTheme.default
     private var item: InboxItem?
+    private var hidesTrailingAccessories = false
 
     /// Exposed for contract tests: the reserved two-line preview height.
     var reservedPreviewHeight: CGFloat {
@@ -143,6 +144,7 @@ final class InboxRowCell: UITableViewCell {
     func configure(item: InboxItem, theme: ConversationTheme, hidesTrailingAccessories: Bool) {
         self.theme = theme
         self.item = item
+        self.hidesTrailingAccessories = hidesTrailingAccessories
         backgroundColor = .clear
         contentView.backgroundColor = .clear
 
@@ -187,6 +189,7 @@ final class InboxRowCell: UITableViewCell {
         item.isTyping = isTyping
         self.item = item
         applyPreview(for: item, theme: theme)
+        applyOutgoingStatus(item: item, theme: theme, hidden: hidesTrailingAccessories)
         accessibilityLabel = accessibility(for: item)
     }
 
