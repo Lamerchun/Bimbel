@@ -23,10 +23,9 @@ enum VoiceGesture {
     }
 }
 
-/// Hold-mic capture without `AVAudioRecorder` / `playAndRecord`.
-/// Parking a paused recorder still died ~5–7s after a correct idle UI
-/// (Thang on `0958376`). Clock + synthetic meter; send writes a WAV via
-/// `AVAudioFile` (file I/O only). No `stop()`, no `setActive`.
+/// Hold-mic capture without `AVAudioRecorder` / `playAndRecord` / `setActive`.
+/// Clock + synthetic meter. Send writes a hand-rolled silent WAV — not
+/// `AVAudioFile.writeFromBuffer`, which traps in ExtAudioFileWrite (CAAssert).
 @MainActor
 final class VoiceRecordingController: NSObject {
     enum State: Equatable {
@@ -188,25 +187,43 @@ final class VoiceRecordingController: NSObject {
 }
 
 enum VoiceTakeWriter {
+    /// PCM16 LE mono 8 kHz RIFF. Bytes only — AudioToolbox `ExtAudioFileWrite`
+    /// / `AudioConverterFillComplexBuffer` aborted on `AVAudioFile` + Int16
+    /// buffer (empty converter input, CAVerboseAbort).
     static func writeSilentWAV(to url: URL, duration: TimeInterval) {
-        let rate: Double = 8_000
-        guard let format = AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: rate,
-            channels: 1,
-            interleaved: true
-        ) else { return }
-        do {
-            if FileManager.default.fileExists(atPath: url.path) {
-                try FileManager.default.removeItem(at: url)
-            }
-            let file = try AVAudioFile(forWriting: url, settings: format.settings)
-            let frames = AVAudioFrameCount(max(0.2, duration) * rate)
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: max(frames, 1)) else { return }
-            buffer.frameLength = max(frames, 1)
-            try file.write(from: buffer)
-        } catch {
-            return
+        let sampleRate = 8_000
+        // Placeholder payload, not the hold length. Keep the file tiny.
+        let seconds = 0.25
+        _ = duration
+        let frames = Int((seconds * Double(sampleRate)).rounded())
+        let dataBytes = max(frames, 1) * 2
+        var data = Data()
+        data.reserveCapacity(44 + dataBytes)
+        func fourCC(_ ascii: String) {
+            data.append(contentsOf: ascii.utf8)
         }
+        func u16(_ value: UInt16) {
+            var le = value.littleEndian
+            withUnsafeBytes(of: &le) { data.append(contentsOf: $0) }
+        }
+        func u32(_ value: UInt32) {
+            var le = value.littleEndian
+            withUnsafeBytes(of: &le) { data.append(contentsOf: $0) }
+        }
+        fourCC("RIFF")
+        u32(UInt32(36 + dataBytes))
+        fourCC("WAVE")
+        fourCC("fmt ")
+        u32(16)
+        u16(1)
+        u16(1)
+        u32(UInt32(sampleRate))
+        u32(UInt32(sampleRate * 2))
+        u16(2)
+        u16(16)
+        fourCC("data")
+        u32(UInt32(dataBytes))
+        data.append(Data(count: dataBytes))
+        try? data.write(to: url, options: .atomic)
     }
 }

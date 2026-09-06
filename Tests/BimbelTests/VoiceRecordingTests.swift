@@ -29,7 +29,7 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: 40, y: 10), cancelAt: cancelAt, lockAt: lockAt))
     }
 
-    func testFinishAfterBeginReturnsATakeWithoutCrashing() {
+    func testFinishAfterBeginReturnsATakeWithoutCrashing() throws {
         let voice = VoiceRecordingController()
         voice.begin()
         XCTAssertEqual(voice.state, .recording)
@@ -38,6 +38,20 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertEqual(voice.state, .idle)
         XCTAssertGreaterThanOrEqual(take?.duration ?? 0, 0.2)
         XCTAssertEqual(take?.url.pathExtension, "wav")
+        let bytes = try Data(contentsOf: take!.url)
+        XCTAssertEqual(String(data: bytes.prefix(4), encoding: .ascii), "RIFF")
+        XCTAssertEqual(String(data: bytes.subdata(in: 8..<12), encoding: .ascii), "WAVE")
+        XCTAssertGreaterThan(bytes.count, 44)
+    }
+
+    func testSilentWAVIsHandRolledRIFFNotAudioToolbox() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bimbel-silent-unit.wav")
+        VoiceTakeWriter.writeSilentWAV(to: url, duration: 12)
+        let bytes = try Data(contentsOf: url)
+        XCTAssertEqual(String(data: bytes.prefix(4), encoding: .ascii), "RIFF")
+        XCTAssertEqual(String(data: bytes.subdata(in: 8..<12), encoding: .ascii), "WAVE")
+        XCTAssertLessThan(bytes.count, 8_000)
     }
 
     func testCancelAndFinishReturnIdleWithoutParkingARecorder() {
