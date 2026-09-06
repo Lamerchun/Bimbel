@@ -88,12 +88,12 @@ Logo-Sponsoren, sobald es welche gibt.
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/inbox-theme-bimbel.png" alt="Inbox, Theme Bimbel" width="280" />
+  <img src="docs/screenshots/inbox-theme-bimbel.png" alt="Conversation list, Theme Bimbel" width="280" />
   <img src="docs/screenshots/conversation-theme-bimbel.png" alt="Conversation, Theme Bimbel" width="280" />
   <img src="docs/screenshots/conversation-accent-blue.png" alt="Conversation, Accent Blue" width="280" />
 </p>
 
-Inbox, Theme Bimbel · Conversation, Theme Bimbel · Conversation, Accent Blue
+Conversation list · Theme Bimbel · Conversation · Theme Bimbel · Conversation · Accent Blue
 
 Source files: `docs/screenshots/`
 
