@@ -181,4 +181,40 @@ final class InboxRowContractTests: XCTestCase {
         item.isTyping = true
         XCTAssertEqual(InboxPreviewResolver.kind(for: item), .typing)
     }
+
+    func testApplyWithoutWindowDoesNotTouchTable() {
+        let store = InboxApplyStore(items: [
+            InboxItem(id: "ada", title: "Ada", preview: "On my way.", timestamp: Date())
+        ])
+        let inbox = InboxViewController(dataSource: store)
+        inbox.loadViewIfNeeded()
+        store.items = [
+            InboxItem(id: "ada", title: "Ada", preview: InboxAttachmentLabel.voice, timestamp: Date())
+        ]
+        inbox.apply(store.snapshot(), animatingDifferences: true)
+    }
+
+    func testApplySameIdentifiersReconfiguresCurrentSnapshot() {
+        let store = InboxApplyStore(items: [
+            InboxItem(id: "ada", title: "Ada", preview: "On my way.", timestamp: Date())
+        ])
+        let inbox = InboxViewController(dataSource: store)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = inbox
+        window.makeKeyAndVisible()
+        inbox.loadViewIfNeeded()
+        inbox.apply(store.snapshot(), animatingDifferences: false)
+        store.items = [
+            InboxItem(id: "ada", title: "Ada", preview: InboxAttachmentLabel.voice, timestamp: Date())
+        ]
+        inbox.apply(store.snapshot(), animatingDifferences: true)
+        inbox.apply(store.snapshot(), animatingDifferences: true)
+    }
+}
+
+@MainActor
+private final class InboxApplyStore: InboxDataSource {
+    var items: [InboxItem]
+    init(items: [InboxItem]) { self.items = items }
+    func snapshot() -> InboxSnapshot { InboxSnapshot(items: items) }
 }

@@ -256,11 +256,17 @@ final class VoiceLockOverlay: UIView {
         isHidden = true
         locked = false
         cancelProgress = 0
-        waveform.reset()
+        holdBar.isHidden = false
+        lockedBar.isHidden = true
+        lockWell.isHidden = false
+        lockWell.alpha = 1
+        lockWell.transform = .identity
+        cancelHint.alpha = 1
         cancelHint.transform = .identity
         applyCancelHintColor()
-        lockWell.transform = .identity
+        waveform.reset()
         lockedBar.isAccessibilityElement = false
+        accessibilityViewIsModal = false
     }
 
     func applyHoldProgress(_ translation: CGPoint, cancelAt: CGFloat, lockAt: CGFloat) {

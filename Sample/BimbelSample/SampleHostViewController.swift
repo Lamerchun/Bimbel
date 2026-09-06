@@ -175,15 +175,16 @@ final class SampleHostViewController: UIViewController {
             },
             onSendVoice: { [weak self] url, duration, waveform, quote in
                 guard let self else { return nil }
-                let message = self.store.sendVoice(
+                // Do not `refreshInbox()` here. The inbox is covered; applying
+                // it from hold-release crashed in `reloadVisible` (SpringBoard).
+                // `onBack` already refreshes the list.
+                return self.store.sendVoice(
                     url,
                     duration: duration,
                     waveform: waveform,
                     quote: quote,
                     in: id
                 )
-                self.refreshInbox()
-                return message
             },
             onReply: { _ in },
             onReaction: { [weak self] message, emoji in

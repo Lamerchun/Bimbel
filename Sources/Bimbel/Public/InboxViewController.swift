@@ -23,6 +23,8 @@ open class InboxViewController: UIViewController {
     private var query = ""
     private var unreadOnly = false
     private var didPreferTablePanOverPop = false
+    /// `apply` while off-window stores rows and waits. Flush on appear.
+    private var pendingVisibleReload = false
 
     public init(
         dataSource: any InboxDataSource,
@@ -56,6 +58,9 @@ open class InboxViewController: UIViewController {
         super.viewWillAppear(animated)
         NavigationChrome.hideSystemBar(in: self, animated: animated)
         preferTablePanOverInteractivePop()
+        if pendingVisibleReload {
+            reloadVisible(animating: false)
+        }
     }
 
     public override func viewDidLayoutSubviews() {
@@ -175,6 +180,14 @@ open class InboxViewController: UIViewController {
     }
 
     private func reloadVisible(animating: Bool) {
+        guard isViewLoaded else { return }
+        // Off-window apply (covered inbox during thread send) must not touch
+        // the table — `reconfigureItems` on a detached list is EXC_BREAKPOINT.
+        guard view.window != nil else {
+            pendingVisibleReload = true
+            return
+        }
+        pendingVisibleReload = false
         let parts = InboxFiltering.sections(items: snapshot.items, query: query, unreadOnly: unreadOnly)
         var next = NSDiffableDataSourceSnapshot<InboxListSection, ConversationID>()
         if !parts.pinned.isEmpty {
@@ -187,8 +200,11 @@ open class InboxViewController: UIViewController {
         if current.itemIdentifiers == next.itemIdentifiers,
            current.sectionIdentifiers == next.sectionIdentifiers
         {
-            next.reconfigureItems(next.itemIdentifiers)
-            diffable.apply(next, animatingDifferences: false)
+            // Reconfigure the *live* snapshot. A fresh empty snapshot with the
+            // same ids still trips UITableViewDiffableDataSource (SpringBoard).
+            var live = current
+            live.reconfigureItems(current.itemIdentifiers)
+            diffable.apply(live, animatingDifferences: false)
         } else {
             diffable.apply(next, animatingDifferences: animating)
         }

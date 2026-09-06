@@ -932,12 +932,26 @@ extension ConversationViewController: ComposerViewDelegate {
                 lockAt: theme.layout.voiceLockTranslation
             ) == .cancel {
                 voice.cancel()
+                restoreIdleComposer()
             } else {
                 sendVoice()
             }
         case .locked, .paused, .idle:
             break
         }
+    }
+
+    /// Cancel-past-72pt (and any idle transition): hide the hold bar and
+    /// put Plus / Message / Camera / mic back. Lock chrome is unchanged.
+    private func restoreIdleComposer() {
+        voiceOverlay.hide()
+        updateDismissPanEnabled()
+        composer.apply(
+            theme: theme,
+            sendable: isSendable,
+            sheetPresented: isSheetPresented,
+            reply: replyTarget
+        )
     }
 
     func composerDidCancelReply(_ composer: ComposerView) {

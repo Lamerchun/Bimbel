@@ -63,6 +63,32 @@ final class VoiceRecordingTests: XCTestCase {
         )
     }
 
+    func testCancelPastSeventyTwoPointsHidesOverlayAndReturnsIdle() {
+        let voice = VoiceRecordingController()
+        let overlay = VoiceLockOverlay()
+        overlay.apply(theme: .default)
+        voice.onStateChange = { state in
+            switch state {
+            case .idle: overlay.hide()
+            case .recording: overlay.showRecording()
+            case .locked, .paused: overlay.showLocked()
+            }
+        }
+        voice.begin()
+        XCTAssertEqual(voice.state, .recording)
+        XCTAssertFalse(overlay.isHidden)
+        overlay.applyHoldProgress(CGPoint(x: -80, y: 0), cancelAt: 72, lockAt: 56)
+        XCTAssertEqual(overlay.cancelHintTextColor, .systemRed)
+        XCTAssertEqual(
+            VoiceGesture.outcome(translation: CGPoint(x: -80, y: 0), cancelAt: 72, lockAt: 56),
+            .cancel
+        )
+        voice.cancel()
+        overlay.hide()
+        XCTAssertEqual(voice.state, .idle)
+        XCTAssertTrue(overlay.isHidden)
+    }
+
     func testHoldCopyHasNoBrandNames() {
         let overlay = VoiceLockOverlay()
         overlay.showRecording()
