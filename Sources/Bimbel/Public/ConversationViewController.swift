@@ -538,17 +538,15 @@ open class ConversationViewController: UIViewController {
         let used = approvalController?.session.items.count ?? 0
         let remaining = max(0, theme.layout.maxAttachmentsPerSend - used)
         if remaining == 0 {
-            let toastHost: UIView
-            if let approvalView = approvalController?.view {
-                toastHost = approvalView
+            if let approval = approvalController {
+                approval.showOverLimitToast()
             } else {
-                toastHost = view
+                BimbelToast.show(
+                    EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
+                    in: view,
+                    theme: theme
+                )
             }
-            BimbelToast.show(
-                EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
-                in: toastHost,
-                theme: theme
-            )
             return
         }
         config.selectionLimit = remaining

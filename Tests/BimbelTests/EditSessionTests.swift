@@ -137,4 +137,29 @@ final class EditSessionTests: XCTestCase {
         XCTAssertFalse(MediaRender.needsTrim(full, duration: 12))
         XCTAssertTrue(MediaRender.needsTrim(MediaVideoTrim(start: 1, end: 8), duration: 12))
     }
+
+    func testOverLimitToastSitsAboveApprovalChrome() {
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let chrome = UIView()
+        chrome.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(chrome)
+        NSLayoutConstraint.activate([
+            chrome.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            chrome.trailingAnchor.constraint(equalTo: host.trailingAnchor),
+            chrome.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+            chrome.heightAnchor.constraint(equalToConstant: 140)
+        ])
+        host.layoutIfNeeded()
+        BimbelToast.show(
+            EditSession.overLimitMessage(limit: 10),
+            in: host,
+            theme: .default,
+            above: chrome
+        )
+        host.layoutIfNeeded()
+        let toast = host.viewWithTag(BimbelToast.tag)
+        XCTAssertEqual(toast.flatMap { ($0 as? UILabel)?.text }, "You can send up to 10 photos or videos.")
+        XCTAssertLessThanOrEqual(toast?.frame.maxY ?? 0, chrome.frame.minY - 11)
+        XCTAssertGreaterThan(toast?.frame.maxY ?? 0, 1)
+    }
 }

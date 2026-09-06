@@ -112,11 +112,7 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
         rail.onAdd = { [weak self] in
             guard let self else { return }
             if self.session.items.count >= self.theme.layout.maxAttachmentsPerSend {
-                BimbelToast.show(
-                    EditSession.overLimitMessage(limit: self.theme.layout.maxAttachmentsPerSend),
-                    in: self.view,
-                    theme: self.theme
-                )
+                self.showOverLimitToast()
                 return
             }
             self.onAddMore?(self)
@@ -200,17 +196,23 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
     func admit(_ incoming: [EditSession.Item]) -> Int {
         let result = session.admit(incoming, limit: theme.layout.maxAttachmentsPerSend)
         if result.rejected > 0 {
-            BimbelToast.show(
-                EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
-                in: view,
-                theme: theme
-            )
+            showOverLimitToast()
         }
         if result.admitted > 0 {
             session.selectedIndex = session.items.count - 1
         }
         refresh()
         return result.rejected
+    }
+
+    /// Sit above toolbar + caption + rail so the limit copy is not under the chrome.
+    func showOverLimitToast() {
+        BimbelToast.show(
+            EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
+            in: view,
+            theme: theme,
+            above: toolbar
+        )
     }
 
     func mediaEditor(_ editor: UIViewController, didFinish item: EditSession.Item) {

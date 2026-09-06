@@ -2,7 +2,15 @@ import UIKit
 
 @MainActor
 enum BimbelToast {
-    static func show(_ text: String, in view: UIView, theme: ConversationTheme) {
+    static let tag = 81_140
+
+    /// `above` lifts the chip over Approval caption/rail. Default −24 sits under that chrome.
+    static func show(
+        _ text: String,
+        in view: UIView,
+        theme: ConversationTheme,
+        above: UIView? = nil
+    ) {
         view.viewWithTag(Self.tag)?.removeFromSuperview()
         let label = UILabel()
         label.tag = tag
@@ -16,9 +24,15 @@ enum BimbelToast {
         label.layer.masksToBounds = true
         label.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(label)
+        let bottom: NSLayoutConstraint
+        if let above {
+            bottom = label.bottomAnchor.constraint(equalTo: above.topAnchor, constant: -12)
+        } else {
+            bottom = label.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24)
+        }
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            label.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
+            bottom,
             label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
             label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24)
         ])
@@ -32,6 +46,4 @@ enum BimbelToast {
             }
         }
     }
-
-    private static let tag = 81_140
 }
