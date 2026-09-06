@@ -26,7 +26,7 @@ enum VoiceGesture {
 /// Process-lifetime park. `AVAudioRecorder.stop()` and releasing the recorder
 /// (dealloc also stops) race mediaserverd → SpringBoard. Pause and keep.
 enum VoiceRecorderPark {
-    static var recorders: [AVAudioRecorder] = []
+    nonisolated(unsafe) static var recorders: [AVAudioRecorder] = []
 }
 
 /// Hold-mic recorder. Never `stop()` the writer and never `setActive(false)`.
