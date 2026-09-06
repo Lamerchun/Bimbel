@@ -33,13 +33,33 @@ final class MediaPagerTests: XCTestCase {
         )))
     }
 
-    func testPagerChromeIconsAreUltraLightLine() {
+    func testShip5ChromeMatchesHeaderFamily() {
         XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLineWeight, .ultraLight)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLinePointSize, 22)
         XCTAssertEqual(ConversationTheme.default.layout.headerIcon, 22)
         XCTAssertEqual(ConversationTheme.default.layout.hitTarget, 44)
-        for name in ["xmark", "square.and.arrow.down", "arrowshape.turn.up.right"] {
+        XCTAssertEqual(ConversationTheme.default.materials.headerBlurStyle, .systemChromeMaterial)
+        XCTAssertEqual(ConversationPagerChrome.symbols, ["xmark", "square.and.arrow.down", "arrowshape.turn.up.right"])
+        for name in ConversationPagerChrome.symbols {
             XCTAssertFalse(name.contains(".fill"), "\(name) must stay a line glyph")
             XCTAssertNotNil(UIImage.bimbelComposerLine(name))
         }
+
+        let bar = MediaPagerChromeView(theme: .default)
+        bar.apply(theme: .default)
+        XCTAssertEqual(bar.headerTitleTint, ConversationTheme.default.colors.headerTitle)
+        XCTAssertFalse(bar.usesAccentTint, "no extra accent on pager chrome")
+        XCTAssertTrue(bar.buttonFillsAreClear)
+        XCTAssertFalse(bar.hasHairline)
+
+        let blue = MediaPagerChromeView(theme: .blue)
+        blue.apply(theme: .blue)
+        XCTAssertEqual(blue.headerTitleTint, ConversationTheme.blue.colors.headerTitle)
+        XCTAssertFalse(blue.usesAccentTint)
+    }
+
+    func testPagerHasNoAllMediaGrid() {
+        XCTAssertNil(NSClassFromString("Bimbel.MediaGridViewController"))
+        XCTAssertEqual(MediaPagerItems.collect([]).count, 0)
     }
 }
