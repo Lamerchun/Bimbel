@@ -201,7 +201,7 @@ final class ConversationHeaderView: UIView {
         if selecting {
             videoButton.isHidden = true
             callButton.isHidden = true
-            backButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+            backButton.setImage(UIImage.bimbelComposerLine("xmark"), for: .normal)
             backButton.accessibilityLabel = String(localized: "Cancel")
         } else if header.showsUnifiedCall {
             videoButton.isHidden = true

@@ -178,8 +178,8 @@ final class MessageCollectionCell: UICollectionViewCell {
 
         selectMark.isHidden = !isSelecting
         if isSelecting {
-            let name = isSelected ? "checkmark.circle.fill" : "circle"
-            selectMark.image = UIImage(systemName: name, withConfiguration: .bimbelComposerLine)
+            let name = isSelected ? "checkmark.circle" : "circle"
+            selectMark.image = UIImage.bimbelComposerLine(name)
             selectMark.tintColor = isSelected ? theme.colors.accent : theme.colors.metadata
         }
 

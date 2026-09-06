@@ -1,6 +1,6 @@
 import UIKit
 
-enum ConversationMessageMenuItem: Equatable {
+enum ConversationMessageMenuItem: Equatable, CaseIterable {
     case reply
     case copy
     case save
@@ -36,7 +36,7 @@ enum ConversationMessageMenuItem: Equatable {
     var isDestructive: Bool { self == .delete }
 
     var lineImage: UIImage? {
-        UIImage(systemName: systemImage, withConfiguration: .bimbelComposerLine)
+        UIImage.bimbelComposerLine(systemImage)
     }
 }
 

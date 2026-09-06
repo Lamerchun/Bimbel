@@ -26,6 +26,12 @@ final class ConversationSelectionToolbar: UIView {
 
     var forwardFillColor: UIColor? { forwardButton.configuration?.background.backgroundColor }
     var deleteFillColor: UIColor? { deleteButton.configuration?.background.backgroundColor }
+    var usesComposerLineSymbols: Bool {
+        forwardButton.configuration?.preferredSymbolConfigurationForImage != nil
+            && deleteButton.configuration?.preferredSymbolConfigurationForImage != nil
+            && forwardButton.configuration?.background.image == nil
+            && deleteButton.configuration?.background.image == nil
+    }
 
     private func setup() {
         countLabel.font = .systemFont(ofSize: 15, weight: .semibold)
@@ -80,7 +86,8 @@ final class ConversationSelectionToolbar: UIView {
     ) {
         var config = UIButton.Configuration.plain()
         config.title = title
-        config.image = UIImage(systemName: symbol, withConfiguration: .bimbelComposerLine)
+        config.image = UIImage.bimbelComposerLine(symbol)
+        config.preferredSymbolConfigurationForImage = .bimbelComposerLine
         config.imagePlacement = .leading
         config.imagePadding = 6
         config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14)
@@ -88,6 +95,7 @@ final class ConversationSelectionToolbar: UIView {
         config.background.backgroundColor = fill
         config.background.cornerRadius = 18
         config.background.strokeWidth = 0
+        config.background.image = nil
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
             outgoing.font = .systemFont(ofSize: 15, weight: .semibold)

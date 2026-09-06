@@ -78,13 +78,21 @@ final class ConversationMessageMenuTests: XCTestCase {
     func testShip3SelectionToolbarFillsAndLineIcons() {
         XCTAssertEqual(ConversationSelectionChrome.deleteFill, UIColor.systemRed)
         XCTAssertEqual(ConversationSelectionChrome.forwardFill, UIColor.secondarySystemFill)
-        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLine, UIImage.SymbolConfiguration(pointSize: 22, weight: .ultraLight))
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLinePointSize, 22)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLineWeight, .ultraLight)
         XCTAssertNotNil(ConversationMessageMenuItem.forward.lineImage)
         XCTAssertNotNil(ConversationMessageMenuItem.delete.lineImage)
+        for item in ConversationMessageMenuItem.allCases {
+            XCTAssertFalse(
+                item.systemImage.contains(".fill"),
+                "\(item.title) must stay a line glyph, not a filled plate"
+            )
+        }
 
         let bar = ConversationSelectionToolbar(frame: CGRect(x: 0, y: 0, width: 390, height: 52))
         bar.apply(theme: .default, selectedCount: 2)
         XCTAssertEqual(bar.deleteFillColor, ConversationSelectionChrome.deleteFill)
         XCTAssertEqual(bar.forwardFillColor, ConversationSelectionChrome.forwardFill)
+        XCTAssertTrue(bar.usesComposerLineSymbols)
     }
 }

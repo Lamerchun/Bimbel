@@ -79,14 +79,14 @@ final class ComposerView: UIView, UITextViewDelegate {
         let plusLong = UILongPressGestureRecognizer(target: self, action: #selector(longPlus(_:)))
         plusButton.addGestureRecognizer(plusLong)
 
-        plusButton.setImage(UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
+        plusButton.setImage(UIImage.bimbelComposerLine("plus"), for: .normal)
         plusButton.accessibilityLabel = "Attach"
 
-        stickerButton.setImage(UIImage(systemName: "face.smiling", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
+        stickerButton.setImage(UIImage.bimbelComposerLine("face.smiling"), for: .normal)
         stickerButton.addTarget(self, action: #selector(tapSticker), for: .touchUpInside)
         stickerButton.accessibilityLabel = "Stickers"
 
-        cameraButton.setImage(UIImage(systemName: "camera", withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
+        cameraButton.setImage(UIImage.bimbelComposerLine("camera"), for: .normal)
         cameraButton.addTarget(self, action: #selector(tapCamera), for: .touchUpInside)
         cameraButton.accessibilityLabel = "Camera"
 
@@ -292,7 +292,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         stickerButton.tintColor = theme.colors.composerIcon
 
         let plusName = sheetPresented ? "keyboard" : "plus"
-        plusButton.setImage(UIImage(systemName: plusName, withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine), for: .normal)
+        plusButton.setImage(UIImage.bimbelComposerLine(plusName), for: .normal)
         plusButton.accessibilityLabel = sheetPresented ? "Show keyboard" : "Attach"
         plusButton.accessibilityHint = sheetPresented ? nil : "Long press to open the photo library"
 
@@ -541,5 +541,19 @@ final class ReplyQuoteView: UIView {
 }
 
 extension UIImage.SymbolConfiguration {
-    static let bimbelComposerLine = UIImage.SymbolConfiguration(pointSize: 22, weight: .ultraLight)
+    /// Composer / long-press / selection family: 22 pt line, never a symbol plate.
+    static let bimbelComposerLinePointSize: CGFloat = 22
+    static let bimbelComposerLineWeight: UIImage.SymbolWeight = .ultraLight
+    static let bimbelComposerLine = UIImage.SymbolConfiguration(
+        pointSize: bimbelComposerLinePointSize,
+        weight: bimbelComposerLineWeight
+    )
+}
+
+extension UIImage {
+    /// SF line glyph in the composer family (ultraLight, no plate).
+    static func bimbelComposerLine(_ systemName: String) -> UIImage? {
+        UIImage(systemName: systemName, withConfiguration: .bimbelComposerLine)?
+            .withRenderingMode(.alwaysTemplate)
+    }
 }

@@ -624,7 +624,8 @@ extension ConversationViewController: UICollectionViewDelegate {
         guard indexPath.item < rows.count, case .message(let message, _) = rows[indexPath.item] else { return nil }
         if case .system = message.kind { return nil }
         // Targeted bubble preview only. `previewProvider` stays nil so UIKit
-        // does not present a fullscreen preview controller.
+        // does not present a fullscreen preview controller. Do not implement
+        // `willPerformPreviewActionForMenuWith` — that commit path is the pager.
         return UIContextMenuConfiguration(identifier: message.id as NSString, previewProvider: nil) { [weak self] _ in
             self?.menu(for: message)
         }
