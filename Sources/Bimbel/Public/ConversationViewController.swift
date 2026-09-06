@@ -277,6 +277,7 @@ open class ConversationViewController: UIViewController {
                 )
                 cell.onReply = { [weak self] in self?.beginReply($0) }
                 cell.onOpenURL = { [weak self] in self?.actions.onOpenURL?($0) ?? UIApplication.shared.open($0) }
+                cell.onOpenMedia = { [weak self] in self?.openMediaPager(startingAt: $0) }
                 return cell
             }
         }
@@ -690,7 +691,7 @@ extension ConversationViewController: UICollectionViewDelegate {
         if case .system = message.kind { return nil }
         // Targeted bubble preview only. `previewProvider` stays nil so UIKit
         // does not present a fullscreen preview controller. Do not implement
-        // `willPerformPreviewActionForMenuWith` — that commit path is the pager.
+        // `willPerformPreviewActionForMenuWith` — tap on media opens the pager.
         return UIContextMenuConfiguration(identifier: message.id as NSString, previewProvider: nil) { [weak self] _ in
             self?.menu(for: message)
         }
@@ -708,6 +709,22 @@ extension ConversationViewController: UICollectionViewDelegate {
         previewForDismissingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
     ) -> UITargetedPreview? {
         targetedPreview(for: configuration)
+    }
+
+    private func openMediaPager(startingAt message: Message) {
+        guard !isSelecting, ConversationMessageMenu.isMedia(message) else { return }
+        var items = MediaPagerItems.collect(snapshot.messages)
+        if items.contains(where: { $0.id == message.id }) == false {
+            items.insert(message, at: 0)
+        }
+        let pager = MediaPagerViewController(
+            items: items,
+            startID: message.id,
+            theme: theme,
+            onSave: { [weak self] in self?.actions.onSaveMedia?($0) },
+            onForward: { [weak self] in self?.actions.onForward?([$0]) }
+        )
+        present(pager, animated: true)
     }
 
     private func targetedPreview(for configuration: UIContextMenuConfiguration) -> UITargetedPreview? {

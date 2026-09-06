@@ -5,6 +5,7 @@ final class MessageCollectionCell: UICollectionViewCell {
 
     var onReply: ((Message) -> Void)?
     var onOpenURL: ((URL) -> Void)?
+    var onOpenMedia: ((Message) -> Void)?
     var previewTarget: UIView { bubble }
 
     /// Bubble silhouette for a targeted long-press preview — not a fullscreen lift.
@@ -40,6 +41,7 @@ final class MessageCollectionCell: UICollectionViewCell {
     private var trailingAlign: NSLayoutConstraint!
     private var avatarWidth: NSLayoutConstraint!
     private var avatarHeight: NSLayoutConstraint!
+    private let mediaTap = UITapGestureRecognizer()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -85,6 +87,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         ])
 
         playBadge.tintColor = .white
+        playBadge.isUserInteractionEnabled = false
         playBadge.translatesAutoresizingMaskIntoConstraints = false
         bubble.addSubview(playBadge)
         NSLayoutConstraint.activate([
@@ -148,6 +151,8 @@ final class MessageCollectionCell: UICollectionViewCell {
         contentView.addGestureRecognizer(pan)
 
         bubble.isUserInteractionEnabled = true
+        mediaTap.addTarget(self, action: #selector(openMedia))
+        mediaView.addGestureRecognizer(mediaTap)
         linkCard.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openLink)))
     }
 
@@ -164,6 +169,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         current = message
         self.theme = theme
         self.allowsReplySwipe = allowsReplySwipe && !isSelecting
+        mediaTap.isEnabled = !isSelecting
         bubbleWidth.isActive = false
         bubbleWidth = bubble.widthAnchor.constraint(lessThanOrEqualToConstant: max(160, width * theme.layout.bubbleMaxWidthRatio))
         bubbleWidth.isActive = true
@@ -320,6 +326,11 @@ final class MessageCollectionCell: UICollectionViewCell {
         if case .text(_, let preview) = current?.kind, let url = preview?.url {
             onOpenURL?(url)
         }
+    }
+
+    @objc private func openMedia() {
+        guard let message = current, ConversationMessageMenu.isMedia(message) else { return }
+        onOpenMedia?(message)
     }
 
     override func prepareForReuse() {

@@ -38,7 +38,8 @@ inbox.apply(store.snapshot(), animatingDifferences: false)
 - Host calls `apply(_:animatingDifferences:)` when inbox rows **or** messages change. Do not poll arrays.
 - The package **never** mints `ConversationID`s or `MessageID`s.
 - Send closures return the inserted `Message` or `nil`. `onSendMedia` returns `[Message]?`.
-- Camera, PHPicker, and attach-sheet recents go through `EditSession` (Approval → Crop / Draw / Text) before `onSendMedia`. Do not send a raw `UIImage`. Over `layout.maxAttachmentsPerSend` (10) toasts — no silent truncate. No fullscreen pager yet.
+- Camera, PHPicker, and attach-sheet recents go through `EditSession` (Approval → Crop / Draw / Text) before `onSendMedia`. Do not send a raw `UIImage`. Over `layout.maxAttachmentsPerSend` (10) toasts — no silent truncate.
+- Tap image/video in a bubble opens the fullscreen pager (pinch-zoom, interactive dismiss). Long-press stays a targeted bubble preview — do not add `willPerformPreviewActionForMenuWith`. No “All media” grid.
 - `Participant` is not on `Message`. Look up `dataSource.participant(id:)`.
 - `ImageSource` is `asset` / `url` / `data` only. No `uiImage` on the model.
 - `MessageKind` has no `linkPreview` case — put previews on `.text(_, preview:)`.
