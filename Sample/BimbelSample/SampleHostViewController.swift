@@ -148,6 +148,12 @@ final class SampleHostViewController: UIViewController {
                 self.refreshInbox()
                 return message
             },
+            onSendMedia: { [weak self] media, caption in
+                guard let self else { return nil }
+                let messages = self.store.sendMedia(media, caption: caption, in: id)
+                self.refreshInbox()
+                return messages
+            },
             onSendVoice: { [weak self] url in
                 guard let self else { return nil }
                 let message = self.store.sendVoice(url, in: id)

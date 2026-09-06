@@ -316,6 +316,8 @@ public struct ConversationTheme: Sendable {
         public var composerControl: CGFloat
         public var chip: CGFloat
         public var sheet: CGFloat
+        /// Approval rail thumbs. Ship 4.
+        public var approvalThumb: CGFloat
 
         public init(
             bubble: CGFloat = 22,
@@ -325,7 +327,8 @@ public struct ConversationTheme: Sendable {
             composerPill: CGFloat = 24,
             composerControl: CGFloat = 22,
             chip: CGFloat = 12,
-            sheet: CGFloat = 28
+            sheet: CGFloat = 28,
+            approvalThumb: CGFloat = 12
         ) {
             self.bubble = bubble
             self.bubbleJoin = bubbleJoin
@@ -335,6 +338,7 @@ public struct ConversationTheme: Sendable {
             self.composerControl = composerControl
             self.chip = chip
             self.sheet = sheet
+            self.approvalThumb = approvalThumb
         }
 
         public static let bimbel = Radii()
@@ -382,6 +386,16 @@ public struct ConversationTheme: Sendable {
         public var inboxUnreadDot: CGFloat
         /// Hairline under the text column, not under the avatar.
         public var inboxSeparatorInset: CGFloat
+        /// Hard cap for one Approval send. Over-limit shows a toast — never silent truncate.
+        public var maxAttachmentsPerSend: Int
+        /// Approval rail thumb size.
+        public var approvalThumb: CGFloat
+        /// Gap between approval rail thumbs.
+        public var approvalThumbGap: CGFloat
+        /// Header / approval close glyph. Same 22 ultraLight family as the composer.
+        public var headerIcon: CGFloat
+        /// Draw-editor stroke width.
+        public var drawStrokeWidth: CGFloat
         /// Tight spacing inside a time cluster. Same value as `clusterGap`. Not `grouping.maxGap`.
         public var groupingInnerSpacing: CGFloat {
             get { clusterGap }
@@ -417,7 +431,12 @@ public struct ConversationTheme: Sendable {
             inboxMute: CGFloat = 16,
             inboxUnreadPillHeight: CGFloat = 20,
             inboxUnreadDot: CGFloat = 10,
-            inboxSeparatorInset: CGFloat = 68
+            inboxSeparatorInset: CGFloat = 68,
+            maxAttachmentsPerSend: Int = 10,
+            approvalThumb: CGFloat = 64,
+            approvalThumbGap: CGFloat = 8,
+            headerIcon: CGFloat = 22,
+            drawStrokeWidth: CGFloat = 4
         ) {
             self.bubbleMaxWidthRatio = bubbleMaxWidthRatio
             self.sequenceGap = sequenceGap
@@ -443,6 +462,11 @@ public struct ConversationTheme: Sendable {
             self.inboxUnreadPillHeight = inboxUnreadPillHeight
             self.inboxUnreadDot = inboxUnreadDot
             self.inboxSeparatorInset = inboxSeparatorInset
+            self.maxAttachmentsPerSend = maxAttachmentsPerSend
+            self.approvalThumb = approvalThumb
+            self.approvalThumbGap = approvalThumbGap
+            self.headerIcon = headerIcon
+            self.drawStrokeWidth = drawStrokeWidth
         }
 
         public static let bimbel = Layout()
@@ -465,6 +489,8 @@ public struct ConversationTheme: Sendable {
         public var inboxPreview: UIFont
         /// Inbox unread pill. Ship 1: caption2 bold.
         public var inboxUnread: UIFont
+        /// Approval text overlay. Same size as bubble body.
+        public var bubbleBody: UIFont
 
         public init(
             body: UIFont = .systemFont(ofSize: 16, weight: .regular),
@@ -477,7 +503,8 @@ public struct ConversationTheme: Sendable {
             inboxTitle: UIFont = Self.ship1InboxTitle,
             inboxTime: UIFont = .preferredFont(forTextStyle: .caption1),
             inboxPreview: UIFont = .preferredFont(forTextStyle: .subheadline),
-            inboxUnread: UIFont = Self.ship1InboxUnread
+            inboxUnread: UIFont = Self.ship1InboxUnread,
+            bubbleBody: UIFont = .systemFont(ofSize: 16, weight: .regular)
         ) {
             self.body = body
             self.metadata = metadata
@@ -490,6 +517,7 @@ public struct ConversationTheme: Sendable {
             self.inboxTime = inboxTime
             self.inboxPreview = inboxPreview
             self.inboxUnread = inboxUnread
+            self.bubbleBody = bubbleBody
         }
 
         private static var ship1InboxTitle: UIFont {

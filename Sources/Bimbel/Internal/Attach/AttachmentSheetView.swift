@@ -107,7 +107,12 @@ final class AttachmentSheetView: UIInputView {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.fetchLimit = 24
-        let result = PHAsset.fetchAssets(with: .image, options: options)
+        options.predicate = NSPredicate(
+            format: "mediaType == %d OR mediaType == %d",
+            PHAssetMediaType.image.rawValue,
+            PHAssetMediaType.video.rawValue
+        )
+        let result = PHAsset.fetchAssets(with: options)
         var fetched: [PHAsset] = []
         result.enumerateObjects { asset, _, _ in fetched.append(asset) }
         assets = fetched
@@ -193,6 +198,7 @@ extension AttachmentSheetView: UICollectionViewDataSource, UICollectionViewDeleg
 private final class RecentCell: UICollectionViewCell {
     static let reuseID = "RecentCell"
     private let imageView = UIImageView()
+    private let play = UIImageView(image: UIImage.bimbelComposerLine("play"))
     private var request: PHImageRequestID?
 
     override init(frame: CGRect) {
@@ -203,11 +209,19 @@ private final class RecentCell: UICollectionViewCell {
         contentView.addSubview(imageView)
         imageView.bimbelPinToEdges(of: contentView)
         imageView.backgroundColor = UIColor.tertiarySystemFill
+        play.tintColor = .white
+        play.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(play)
+        NSLayoutConstraint.activate([
+            play.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            play.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
+        ])
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func configure(asset: PHAsset) {
+        play.isHidden = asset.mediaType != .video
         if let request { PHImageManager.default().cancelImageRequest(request) }
         request = PHImageManager.default().requestImage(
             for: asset,

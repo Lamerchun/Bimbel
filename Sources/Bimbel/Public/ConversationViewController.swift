@@ -47,6 +47,7 @@ open class ConversationViewController: UIViewController {
     private var isNearBottom = true
     private var isSelecting = false
     private var selectedIDs: Set<MessageID> = []
+    private weak var approvalController: MediaApprovalViewController?
     private let reactionPalette = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
 
     public init(
@@ -436,9 +437,13 @@ open class ConversationViewController: UIViewController {
     @objc private func tapFAB() { scrollToBottom(animated: true) }
 
     private func insertHostMessage(_ message: Message?) {
-        guard let message else { return }
+        insertHostMessages(message.map { [$0] })
+    }
+
+    private func insertHostMessages(_ messages: [Message]?) {
+        guard let messages, !messages.isEmpty else { return }
         var next = snapshot
-        next.messages.append(message)
+        next.messages.append(contentsOf: messages)
         apply(next, animatingDifferences: true)
     }
 
@@ -505,19 +510,82 @@ open class ConversationViewController: UIViewController {
 
     private func presentPicker() {
         var config = PHPickerConfiguration(photoLibrary: .shared())
-        config.selectionLimit = 8
+        let used = approvalController?.session.items.count ?? 0
+        let remaining = max(0, theme.layout.maxAttachmentsPerSend - used)
+        if remaining == 0 {
+            let host = approvalController?.view ?? view
+            BimbelToast.show(
+                EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
+                in: host,
+                theme: theme
+            )
+            return
+        }
+        config.selectionLimit = remaining
         config.filter = .any(of: [.images, .videos])
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = self
-        present(picker, animated: true)
+        (approvalController ?? self).present(picker, animated: true)
     }
 
     private func presentCamera() {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else { return }
         let picker = UIImagePickerController()
         picker.sourceType = .camera
+        picker.mediaTypes = [UTType.image.identifier, UTType.movie.identifier]
         picker.delegate = self
         present(picker, animated: true)
+    }
+
+    private func presentApproval(admitting incoming: [EditSession.Item]) {
+        guard !incoming.isEmpty || approvalController != nil else { return }
+        if let approval = approvalController {
+            _ = approval.admit(incoming)
+            return
+        }
+        var session = EditSession()
+        let result = session.admit(incoming, limit: theme.layout.maxAttachmentsPerSend)
+        if result.rejected > 0 {
+            BimbelToast.show(
+                EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
+                in: view,
+                theme: theme
+            )
+        }
+        guard !session.items.isEmpty else { return }
+        let approval = MediaApprovalViewController(session: session, theme: theme)
+        approval.onSend = { [weak self] session in
+            self?.sendApproved(session)
+        }
+        approval.onAddMore = { [weak self] _ in
+            self?.presentPicker()
+        }
+        approval.onCancel = { [weak self] in
+            self?.approvalController = nil
+        }
+        let nav = UINavigationController(rootViewController: approval)
+        nav.modalPresentationStyle = .fullScreen
+        approvalController = approval
+        present(nav, animated: true)
+    }
+
+    private func sendApproved(_ session: EditSession) {
+        MediaRender.export(session, theme: theme) { [weak self] media in
+            guard let self else { return }
+            let caption = session.caption.trimmingCharacters(in: .whitespacesAndNewlines)
+            let captionOrNil = caption.isEmpty ? nil : caption
+            if self.actions.onSendMedia != nil {
+                self.insertHostMessages(self.actions.onSendMedia?(media, captionOrNil))
+            } else {
+                self.insertHostMessage(self.actions.onSendAttachments?(media.map { $0.asStagedAttachment() }))
+                if let captionOrNil {
+                    self.insertHostMessage(self.actions.onSendText?(captionOrNil))
+                }
+            }
+            self.approvalController?.dismiss(animated: true)
+            self.approvalController = nil
+            self.scrollToBottom(animated: true)
+        }
     }
 
     private func stage(_ attachment: StagedAttachment) {
@@ -526,12 +594,9 @@ open class ConversationViewController: UIViewController {
     }
 
     private func stageAsset(_ asset: PHAsset) {
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { [weak self] data, _, _, _ in
-            guard let data else { return }
-            self?.stage(.init(kind: .image(.data(data))))
+        MediaIntakeLoader.item(from: asset) { [weak self] item in
+            guard let item else { return }
+            self?.presentApproval(admitting: [item])
         }
     }
 
@@ -844,16 +909,10 @@ extension ConversationViewController: ComposerViewDelegate {
 
 extension ConversationViewController: PHPickerViewControllerDelegate {
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        picker.dismiss(animated: true)
-        for result in results {
-            let provider = result.itemProvider
-            if provider.canLoadObject(ofClass: UIImage.self) {
-                provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
-                    guard let image = object as? UIImage, let data = image.jpegData(compressionQuality: 0.86) else { return }
-                    DispatchQueue.main.async {
-                        self?.stage(.init(kind: .image(.data(data))))
-                    }
-                }
+        picker.dismiss(animated: true) {
+            guard !results.isEmpty else { return }
+            MediaIntakeLoader.items(from: results) { [weak self] items in
+                self?.presentApproval(admitting: items)
             }
         }
     }
@@ -865,9 +924,10 @@ extension ConversationViewController: UIImagePickerControllerDelegate, UINavigat
     }
 
     public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        picker.dismiss(animated: true)
-        if let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.86) {
-            stage(.init(kind: .image(.data(data))))
+        picker.dismiss(animated: true) {
+            if let item = MediaIntakeLoader.item(fromCamera: info) {
+                self.presentApproval(admitting: [item])
+            }
         }
     }
 }

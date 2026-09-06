@@ -123,6 +123,61 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         return message
     }
 
+    func sendMedia(_ media: [OutgoingMedia], caption: String?, in conversationID: ConversationID) -> [Message] {
+        var messages: [Message] = []
+        for (index, item) in media.enumerated() {
+            let isLast = index == media.count - 1
+            let kind: MessageKind
+            switch item.kind {
+            case .image:
+                kind = .image(Media(
+                    source: item.source,
+                    width: item.width ?? 800,
+                    height: item.height ?? 800,
+                    caption: isLast ? caption : nil
+                ))
+            case .video:
+                kind = .video(Media(
+                    source: item.source,
+                    width: item.width ?? 800,
+                    height: item.height ?? 800,
+                    caption: isLast ? caption : nil,
+                    duration: item.duration
+                ))
+            }
+            let message = Message(
+                id: UUID().uuidString,
+                senderID: me,
+                sentAt: Date(),
+                kind: kind,
+                delivery: .sent,
+                isOutgoing: true
+            )
+            threads[conversationID, default: []].append(message)
+            messages.append(message)
+        }
+        if let last = messages.last {
+            let preview: String
+            if let caption, !caption.isEmpty {
+                preview = caption
+            } else if case .video = last.kind {
+                preview = "Video"
+            } else {
+                preview = "Photo"
+            }
+            updateItem(conversationID) { item in
+                item.preview = preview
+                item.timestamp = last.sentAt
+                item.unreadCount = 0
+                item.markedUnread = false
+                item.draftPreview = nil
+                item.previewSenderName = nil
+                item.lastOutgoingDelivery = .sent
+            }
+        }
+        return messages
+    }
+
     func sendAttachments(_ attachments: [StagedAttachment], in conversationID: ConversationID) -> Message {
         let kind: MessageKind
         let preview: String

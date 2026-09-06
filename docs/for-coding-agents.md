@@ -40,8 +40,9 @@ conversation.apply(snapshot, animatingDifferences: true)
 - `Message`: `id`, `senderID`, `sentAt`, `kind`, `replyTo`, `reactions`, `delivery`, `editedAt?` (`isEdited` is derived), `isOutgoing`.
 - Bubble clusters: `grouping.maxGap` 180s, same direction, same author in a group. `layout.groupingInnerSpacing` 3 and `layout.groupingSequenceSpacing` 10 — not media-stack gap (`layout.mediaStackGap` 2). Group avatar at cluster end; sender name when the author changes. Collapse the timestamp footer when the next cell shares the short time and outgoing status; never hide sending / failed; show Edited when `editedAt != nil`.
 - `MessageKind`: `text(String, preview:)`, `image`, `video`, `voice`, `document`, `system`. No separate link-preview kind.
-- `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?` (non-nil → package inserts; nil → host already applied).
-- Long-press V1: targeted bubble preview (not fullscreen), reaction rail, then Reply / Copy or Save / Forward / Delete / Select / Edit. Edit only when `canEdit` is true (`onEdit` is a host callback — no Crop/Draw/Text pipeline this pass). Swipe right stays Reply. Select toolbar: Forward = secondary fill, Delete = systemRed; SF ultraLight line icons (composer family, no plates). Composer stays on `keyboardLayoutGuide`.
+- `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?`. `onSendMedia` returns `[Message]?` (non-nil → package inserts; nil → host already applied).
+- Media Approval (Ship 4): Camera, PHPicker, and attach-sheet recents open an `EditSession` modal — never send a raw image. Rail + caption + Crop / Draw / Text, then `EditSession` → `[OutgoingMedia]` + caption → `onSendMedia` (falls back to `onSendAttachments`). Hard cap `layout.maxAttachmentsPerSend` 10; over-limit toasts, no silent truncate. Video V1 is trim only. No fullscreen pager.
+- Long-press V1: targeted bubble preview (not fullscreen), reaction rail, then Reply / Copy or Save / Forward / Delete / Select / Edit. Edit only when `canEdit` is true. Swipe right stays Reply. Select toolbar: Forward = secondary fill, Delete = systemRed; SF ultraLight line icons (composer family, no plates). Composer stays on `keyboardLayoutGuide`.
 
 ## Keyboard (do not “binary hide”)
 

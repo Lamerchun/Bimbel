@@ -3,10 +3,12 @@ import CoreLocation
 
 /// All closures are optional. Empty `ConversationActions()` is a valid host.
 ///
-/// `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?`:
-/// - non-nil: the package inserts that message via `apply`
+/// `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?`.
+/// `onSendMedia` returns `[Message]?`.
+/// - non-nil: the package inserts via `apply`
 /// - nil: the host already pushed a snapshot
 /// The package never mints message IDs.
+/// Camera and picker go through `EditSession` before `onSendMedia`.
 public struct ConversationActions {
     public var onBack: (() -> Void)?
     public var onHeaderTap: (() -> Void)?
@@ -14,6 +16,9 @@ public struct ConversationActions {
     public var onCall: (() -> Void)?
     public var onSendText: ((String) -> Message?)?
     public var onSendAttachments: (([StagedAttachment]) -> Message?)?
+    /// Camera / picker media after `EditSession`. Caption is the Approval field (may be nil).
+    /// Return messages to insert, or nil if the host already called `apply`.
+    public var onSendMedia: (([OutgoingMedia], String?) -> [Message]?)?
     public var onSendVoice: ((URL) -> Message?)?
     public var onReply: ((Message) -> Void)?
     public var onReaction: ((Message, String) -> Void)?
@@ -22,7 +27,7 @@ public struct ConversationActions {
     public var onSaveMedia: ((Message) -> Void)?
     /// Edit-Gate. Edit appears only when this returns true.
     public var canEdit: ((Message) -> Bool)?
-    /// Host-owned editor. Media Crop/Draw/Text is Ship 4 — this pass only calls through.
+    /// Host-owned message editor. Media Crop/Draw/Text runs in `EditSession` before send.
     public var onEdit: ((Message) -> Void)?
     public var onOpenURL: ((URL) -> Void)?
     public var onAttachmentAction: ((AttachmentAction) -> Void)?
@@ -35,6 +40,7 @@ public struct ConversationActions {
         onCall: (() -> Void)? = nil,
         onSendText: ((String) -> Message?)? = nil,
         onSendAttachments: (([StagedAttachment]) -> Message?)? = nil,
+        onSendMedia: (([OutgoingMedia], String?) -> [Message]?)? = nil,
         onSendVoice: ((URL) -> Message?)? = nil,
         onReply: ((Message) -> Void)? = nil,
         onReaction: ((Message, String) -> Void)? = nil,
@@ -53,6 +59,7 @@ public struct ConversationActions {
         self.onCall = onCall
         self.onSendText = onSendText
         self.onSendAttachments = onSendAttachments
+        self.onSendMedia = onSendMedia
         self.onSendVoice = onSendVoice
         self.onReply = onReply
         self.onReaction = onReaction
