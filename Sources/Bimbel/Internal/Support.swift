@@ -151,7 +151,7 @@ extension UIImage.SymbolConfiguration {
 extension UIImage {
     /// SF line glyph in the composer family (ultraLight, no plate).
     public static func bimbelComposerLine(_ systemName: String) -> UIImage? {
-        UIImage(systemName: systemName, withConfiguration: .bimbelComposerLine)?
+        UIImage(systemName: systemName, withConfiguration: UIImage.SymbolConfiguration.bimbelComposerLine)?
             .withRenderingMode(.alwaysTemplate)
     }
 }

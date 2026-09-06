@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 protocol MediaEditorDelegate: AnyObject {
     func mediaEditor(_ editor: UIViewController, didFinish item: EditSession.Item)
 }
