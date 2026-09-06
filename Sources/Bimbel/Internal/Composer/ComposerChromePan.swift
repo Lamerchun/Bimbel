@@ -18,62 +18,49 @@ enum ComposerChromeDismiss {
     }
 }
 
-/// Forwards a vertical chrome pan to `collectionView.panGestureRecognizer` so
-/// keyboard + composer ride `keyboardLayoutGuide` as one. Finger-up without a
-/// committed dismiss snaps both back (UIKit interactive cancel).
-final class ComposerChromePanRecognizer: UIPanGestureRecognizer, UIGestureRecognizerDelegate {
-    weak var forwardTo: UIPanGestureRecognizer?
+/// Chrome-only bounce scroll. UIKit drives interactive keyboard dismiss from a
+/// `UIScrollView` that is actually scrolling — injecting touches into
+/// `collectionView.panGestureRecognizer` does not start that system gesture.
+/// Plus / pill chrome / camera live inside this view; the Message field and
+/// hold-mic do not start the pan. The composer stays on `keyboardLayoutGuide`.
+final class ComposerDismissScrollView: UIScrollView {
     weak var mic: UIView?
     weak var textView: UIView?
 
-    override init(target: Any?, action: Selector?) {
-        super.init(target: target, action: action)
-        delegate = self
-        cancelsTouchesInView = false
-        delaysTouchesBegan = false
-        delaysTouchesEnded = false
-        maximumNumberOfTouches = 1
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        keyboardDismissMode = .interactive
+        alwaysBounceVertical = true
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never
+        delaysContentTouches = true
+        canCancelContentTouches = true
+        isDirectionalLockEnabled = true
+        bounces = true
+        backgroundColor = .clear
+        clipsToBounds = false
+        accessibilityIdentifier = "composer.dismiss.scroll"
     }
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-        super.touchesBegan(touches, with: event)
-        guard isEnabled else { return }
-        forwardTo?.touchesBegan(touches, with: event)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func touchesShouldCancel(in view: UIView) -> Bool {
+        if let textView, view === textView || view.isDescendant(of: textView) { return false }
+        if let mic, view === mic || view.isDescendant(of: mic) { return false }
+        return true
     }
 
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
-        super.touchesMoved(touches, with: event)
-        guard isEnabled else { return }
-        forwardTo?.touchesMoved(touches, with: event)
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
-        super.touchesEnded(touches, with: event)
-        guard isEnabled else { return }
-        forwardTo?.touchesEnded(touches, with: event)
-    }
-
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
-        super.touchesCancelled(touches, with: event)
-        guard isEnabled else { return }
-        forwardTo?.touchesCancelled(touches, with: event)
-    }
-
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        ComposerChromeDismiss.allowsStart(hitView: touch.view, mic: mic ?? UIView(), textView: textView ?? UIView())
-    }
-
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard isEnabled else { return false }
-        let translation = translation(in: view)
-        let velocity = velocity(in: view)
-        return ComposerChromeDismiss.isVertical(translation: translation, velocity: velocity)
-    }
-
-    func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
-    ) -> Bool {
-        other === forwardTo
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer {
+            let point = gestureRecognizer.location(in: self)
+            let hit = super.hitTest(point, with: nil)
+            return ComposerChromeDismiss.allowsStart(
+                hitView: hit,
+                mic: mic ?? UIView(),
+                textView: textView ?? UIView()
+            )
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
     }
 }

@@ -103,21 +103,30 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertTrue(composer.shouldAttachToKeyboardLayoutGuide)
         XCTAssertEqual(composer.textView.keyboardDismissMode, .none)
         XCTAssertFalse(composer.textView.alwaysBounceVertical)
-        XCTAssertNil(composer.subviews.compactMap { $0 as? UIScrollView }.first)
+        XCTAssertNil(composer.textView.inputAccessoryView)
+        XCTAssertNil(composer.inputAccessoryView)
+
+        let scroll = composer.dismissScroll
+        XCTAssertEqual(scroll.keyboardDismissMode, .interactive)
+        XCTAssertTrue(scroll.alwaysBounceVertical)
+        XCTAssertTrue(scroll.canCancelContentTouches)
+        XCTAssertEqual(scroll.accessibilityIdentifier, "composer.dismiss.scroll")
+        XCTAssertTrue(scroll.isScrollEnabled)
 
         let listPan = UIPanGestureRecognizer()
         composer.bindDismissPassthrough(to: listPan)
-        let chrome = composer.gestureRecognizers?.compactMap { $0 as? ComposerChromePanRecognizer }.first
-        XCTAssertNotNil(chrome)
-        XCTAssertTrue(chrome?.forwardTo === listPan)
-        XCTAssertTrue(chrome?.isEnabled ?? false)
+        XCTAssertTrue(scroll.isScrollEnabled)
 
         composer.isDismissPassthroughEnabled = false
-        XCTAssertFalse(chrome?.isEnabled ?? true)
+        XCTAssertFalse(scroll.isScrollEnabled)
+        XCTAssertEqual(scroll.keyboardDismissMode, .none)
         composer.isDismissPassthroughEnabled = true
-        XCTAssertTrue(chrome?.isEnabled ?? false)
+        XCTAssertTrue(scroll.isScrollEnabled)
+        XCTAssertEqual(scroll.keyboardDismissMode, .interactive)
         XCTAssertNil(composer.subviews.first { $0.accessibilityIdentifier?.contains("handle") == true })
-        XCTAssertNil(composer.textView.inputAccessoryView)
+        XCTAssertTrue(scroll.touchesShouldCancel(in: composer.plusButton))
+        XCTAssertTrue(scroll.touchesShouldCancel(in: composer.cameraButton))
+        XCTAssertFalse(scroll.touchesShouldCancel(in: composer.textView))
     }
 
     func testMicSendFillIsACircleNotTheButtonBackground() {

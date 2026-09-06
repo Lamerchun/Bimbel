@@ -13,7 +13,8 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
     private var theme = ConversationTheme.default
     private var player: AVAudioPlayer?
     private var rate: VoicePlaybackRate = .one
-    private var tick: Timer?
+    /// Main-thread only. `nonisolated(unsafe)` so Swift 6 `deinit` can invalidate.
+    private nonisolated(unsafe) var displayLink: CADisplayLink?
     private var objectToken = UUID()
     private var playSize: NSLayoutConstraint!
     private var fillSize: NSLayoutConstraint!
@@ -87,7 +88,7 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     deinit {
-        tick?.invalidate()
+        displayLink?.invalidate()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -127,7 +128,7 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         if player?.isPlaying == true {
             player?.pause()
             applyPlayIcon(playing: false)
-            tick?.invalidate()
+            stopTick()
             return
         }
         guard let url = voice.fileURL else {
@@ -178,23 +179,30 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
     }
 
     private func startTick() {
-        tick?.invalidate()
-        tick = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                guard let self, let player = self.player, player.isPlaying else { return }
-                let remaining = max(0, player.duration - player.currentTime)
-                self.durationLabel.text = BimbelFormatters.duration(remaining)
-                let total = max(player.duration, 0.001)
-                self.wave.progress = CGFloat(player.currentTime / total)
-            }
-        }
+        stopTick()
+        let link = CADisplayLink(target: self, selector: #selector(pulsePlayback))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 20, preferred: 15)
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopTick() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func pulsePlayback() {
+        guard let player, player.isPlaying else { return }
+        let remaining = max(0, player.duration - player.currentTime)
+        durationLabel.text = BimbelFormatters.duration(remaining)
+        let total = max(player.duration, 0.001)
+        wave.progress = CGFloat(player.currentTime / total)
     }
 
     private func stop(resetClock: Bool) {
         player?.stop()
         player = nil
-        tick?.invalidate()
-        tick = nil
+        stopTick()
         applyPlayIcon(playing: false)
         wave.progress = 0
         if resetClock {

@@ -54,9 +54,9 @@ final class ComposerView: UIView, UITextViewDelegate {
     private var textHeightConstraint: NSLayoutConstraint?
     private var suppressPlusTap = false
     private var micHoldOrigin: CGPoint = .zero
-    private let chromePan = ComposerChromePanRecognizer()
+    let dismissScroll = ComposerDismissScrollView()
     var isDismissPassthroughEnabled = true {
-        didSet { chromePan.isEnabled = isDismissPassthroughEnabled }
+        didSet { applyDismissPassthrough() }
     }
 
     private var recordingChromeLocked = false
@@ -107,6 +107,7 @@ final class ComposerView: UIView, UITextViewDelegate {
 
         plusButton.setImage(UIImage.bimbelComposerLine("plus"), for: .normal)
         plusButton.accessibilityLabel = "Attach"
+        plusButton.accessibilityIdentifier = "composer.plus"
 
         stickerButton.setImage(UIImage.bimbelComposerLine("face.smiling"), for: .normal)
         stickerButton.addTarget(self, action: #selector(tapSticker), for: .touchUpInside)
@@ -115,6 +116,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         cameraButton.setImage(UIImage.bimbelComposerLine("camera"), for: .normal)
         cameraButton.addTarget(self, action: #selector(tapCamera), for: .touchUpInside)
         cameraButton.accessibilityLabel = "Camera"
+        cameraButton.accessibilityIdentifier = "composer.camera"
 
         actionButton.addTarget(self, action: #selector(tapAction), for: .touchUpInside)
         let micHold = UILongPressGestureRecognizer(target: self, action: #selector(holdAction(_:)))
@@ -132,8 +134,8 @@ final class ComposerView: UIView, UITextViewDelegate {
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 4)
         textView.textContainer.lineFragmentPadding = 0
         textView.isScrollEnabled = false
-        // Caret / selection must not steal the dismiss pan. Chrome pan
-        // forwards vertical movement to the collection view instead.
+        // Caret / selection must not steal dismiss. The chrome scroll's pan
+        // rejects the Message field; this field itself is not interactive-dismiss.
         textView.keyboardDismissMode = .none
         textView.alwaysBounceVertical = false
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -223,29 +225,38 @@ final class ComposerView: UIView, UITextViewDelegate {
         stack.addArrangedSubview(replyBanner)
         stack.addArrangedSubview(row)
 
-        addSubview(stack)
+        dismissScroll.mic = actionHost
+        dismissScroll.textView = textView
+        addSubview(dismissScroll)
+        dismissScroll.bimbelPinToEdges(of: self)
+        dismissScroll.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
+            stack.topAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.topAnchor, constant: 4),
+            stack.leadingAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.trailingAnchor, constant: -8),
+            stack.bottomAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.bottomAnchor, constant: -6),
+            stack.widthAnchor.constraint(equalTo: dismissScroll.frameLayoutGuide.widthAnchor, constant: -16)
         ])
-
-        chromePan.mic = actionHost
-        chromePan.textView = textView
-        addGestureRecognizer(chromePan)
+        applyDismissPassthrough()
 
         apply(theme: theme, sendable: false, sheetPresented: false)
     }
 
-    /// Pass vertical pans from Plus / pill chrome / camera to the list pan so
-    /// interactive dismiss and list scroll share one gesture. Hold-mic is excluded.
+    /// Chrome dismiss is this bounce scroll (`keyboardDismissMode = .interactive`).
+    /// The list pan still owns list-started dismiss; we do not inject touches into it.
     func bindDismissPassthrough(to collectionPan: UIPanGestureRecognizer) {
-        chromePan.forwardTo = collectionPan
-        chromePan.mic = actionHost
-        chromePan.textView = textView
-        chromePan.isEnabled = isDismissPassthroughEnabled
+        dismissScroll.mic = actionHost
+        dismissScroll.textView = textView
+        applyDismissPassthrough()
+        _ = collectionPan
+    }
+
+    private func applyDismissPassthrough() {
+        dismissScroll.mic = actionHost
+        dismissScroll.textView = textView
+        dismissScroll.isScrollEnabled = isDismissPassthroughEnabled
+        dismissScroll.keyboardDismissMode = isDismissPassthroughEnabled ? .interactive : .none
     }
 
     override func didMoveToSuperview() {
