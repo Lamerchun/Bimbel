@@ -57,14 +57,15 @@ enum NavigationChrome {
 }
 
 enum BimbelFormatters {
-    static let messageTime: DateFormatter = {
+    /// `DateFormatter` is not Sendable; these are only ever configured at init.
+    nonisolated(unsafe) static let messageTime: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .none
         formatter.timeStyle = .short
         return formatter
     }()
 
-    static let dateChip: DateFormatter = {
+    nonisolated(unsafe) static let dateChip: DateFormatter = {
         let formatter = DateFormatter()
         formatter.setLocalizedDateFormatFromTemplate("EEE d MMM")
         return formatter
@@ -133,6 +134,25 @@ enum ImageLoader {
                 }
             }.resume()
         }
+    }
+}
+
+extension UIImage.SymbolConfiguration {
+    /// Composer / long-press / selection / pager family: 22 pt line, never a symbol plate.
+    /// Public so hosts and tests can lock the same chrome without file-isolation quirks.
+    public static let bimbelComposerLinePointSize: CGFloat = 22
+    public static let bimbelComposerLineWeight: UIImage.SymbolWeight = .ultraLight
+    public static let bimbelComposerLine = UIImage.SymbolConfiguration(
+        pointSize: bimbelComposerLinePointSize,
+        weight: bimbelComposerLineWeight
+    )
+}
+
+extension UIImage {
+    /// SF line glyph in the composer family (ultraLight, no plate).
+    public static func bimbelComposerLine(_ systemName: String) -> UIImage? {
+        UIImage(systemName: systemName, withConfiguration: .bimbelComposerLine)?
+            .withRenderingMode(.alwaysTemplate)
     }
 }
 

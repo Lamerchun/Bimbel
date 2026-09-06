@@ -20,7 +20,7 @@ Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), 
 
 Nächster sichtbarer Schritt: Simulator-Screenshots.
 
-Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread. Ada keyboard-up shot: env `BIMBEL_SHOT=ada` or args `-BIMBEL_SHOT ada`, with Simulator **Connect Hardware Keyboard** off.
+Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread. QA shots: `BIMBEL_SHOT=inbox|ada|design` (env or `-BIMBEL_SHOT ada`) and `BIMBEL_THEME=blue` (or `-BIMBEL_THEME blue`). Ada stands the software keyboard — Simulator **Connect Hardware Keyboard** off.
 
 ## Embed
 

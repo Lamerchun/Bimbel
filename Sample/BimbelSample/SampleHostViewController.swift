@@ -31,19 +31,38 @@ final class SampleHostViewController: UIViewController {
         nav.view.frame = view.bounds
         nav.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         nav.didMove(toParent: self)
+        usingBlue = Self.launchThemeIsBlue
         showInbox()
-        if Self.shotName == "ada" {
+        switch Self.shotName {
+        case "ada":
             // Flag before push so viewDidAppear focuses the layout-guide-pinned composer.
             openConversation(store.adaID, animated: false, presentKeyboardOnAppear: true)
+        case "design":
+            openConversation("design", animated: false)
+        case "inbox", nil:
+            break
+        default:
+            break
         }
     }
 
-    /// `BIMBEL_SHOT=ada` or `-BIMBEL_SHOT ada`. Opens Ada and stands the software keyboard.
+    /// `BIMBEL_SHOT=inbox|ada|design` or `-BIMBEL_SHOT ada`.
+    /// Ada stands the software keyboard; Design opens the group thread; inbox stays on the list.
     private static var shotName: String? {
-        let env = ProcessInfo.processInfo.environment["BIMBEL_SHOT"]
+        processValue("BIMBEL_SHOT")?.lowercased()
+    }
+
+    /// `BIMBEL_THEME=blue` or `-BIMBEL_THEME blue`. Anything else is Default.
+    private static var launchThemeIsBlue: Bool {
+        processValue("BIMBEL_THEME")?.lowercased() == "blue"
+    }
+
+    private static func processValue(_ name: String) -> String? {
+        let env = ProcessInfo.processInfo.environment[name]
         if let env, !env.isEmpty { return env }
+        let flag = "-\(name)"
         let args = ProcessInfo.processInfo.arguments
-        if let index = args.firstIndex(of: "-BIMBEL_SHOT") {
+        if let index = args.firstIndex(of: flag) {
             let next = args.index(after: index)
             if next < args.endIndex { return args[next] }
         }

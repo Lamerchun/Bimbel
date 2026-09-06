@@ -175,8 +175,8 @@ final class MediaDrawEditorViewController: UIViewController {
         var strokes = item.strokes
         strokes.append(contentsOf: canvas.normalizedStrokes(in: fitted))
         var next = item
-        if let painted = MediaRender.paint(strokes: strokes, texts: [], on: image, theme: theme),
-           let data = MediaRender.jpegData(from: painted) {
+        let painted = MediaRender.paint(strokes: strokes, texts: [], on: image, theme: theme)
+        if let data = MediaRender.jpegData(from: painted) {
             next.original = .data(data)
             next.strokes = []
             next.texts = item.texts
@@ -308,7 +308,7 @@ final class DrawCanvas: UIView {
         super.init(frame: frame)
         backgroundColor = .clear
         isOpaque = false
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(draw(_:)))
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleDraw(_:)))
         addGestureRecognizer(pan)
     }
 
@@ -335,7 +335,7 @@ final class DrawCanvas: UIView {
         }
     }
 
-    @objc private func draw(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handleDraw(_ gesture: UIPanGestureRecognizer) {
         let point = gesture.location(in: self)
         switch gesture.state {
         case .began:

@@ -102,6 +102,8 @@ final class InboxRowContractTests: XCTestCase {
 
     func testShip1InboxTypeAndColorTokens() {
         let theme = ConversationTheme.default
+        XCTAssertEqual(theme.fonts.inboxTitle, ConversationTheme.Fonts.ship1InboxTitle)
+        XCTAssertEqual(theme.fonts.inboxUnread, ConversationTheme.Fonts.ship1InboxUnread)
         XCTAssertEqual(theme.fonts.inboxTitle.pointSize, UIFont.preferredFont(forTextStyle: .headline).pointSize)
         XCTAssertEqual(theme.fonts.inboxTime, UIFont.preferredFont(forTextStyle: .caption1))
         XCTAssertEqual(theme.fonts.inboxPreview, UIFont.preferredFont(forTextStyle: .subheadline))

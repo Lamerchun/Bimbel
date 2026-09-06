@@ -520,12 +520,15 @@ public struct ConversationTheme: Sendable {
             self.bubbleBody = bubbleBody
         }
 
-        private static var ship1InboxTitle: UIFont {
+        /// Ship 1 inbox title: headline size, semibold. Public so default arguments
+        /// on this `public` init stay visible to hosts and Swift 6.1 clients.
+        public static var ship1InboxTitle: UIFont {
             let size = UIFont.preferredFont(forTextStyle: .headline).pointSize
             return .systemFont(ofSize: size, weight: .semibold)
         }
 
-        private static var ship1InboxUnread: UIFont {
+        /// Ship 1 unread pill: caption2 size, bold.
+        public static var ship1InboxUnread: UIFont {
             let size = UIFont.preferredFont(forTextStyle: .caption2).pointSize
             return .systemFont(ofSize: size, weight: .bold)
         }

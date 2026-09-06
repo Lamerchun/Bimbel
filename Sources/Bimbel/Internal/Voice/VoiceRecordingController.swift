@@ -123,7 +123,7 @@ final class VoiceRecordingController {
         let level = recorder?.averagePower(forChannel: 0) ?? Float.random(in: -40...(-8))
         onLevel?(level, currentDuration)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            self?.tick()
+            MainActor.assumeIsolated { self?.tick() }
         }
     }
 

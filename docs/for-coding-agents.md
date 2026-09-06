@@ -59,4 +59,4 @@ Header glass: Liquid Glass on iOS 26 (`UIGlassEffect` if present), otherwise `.s
 
 Open `Bimbel.xcworkspace`. Target `BimbelSample`. Starts on the inbox. Tap Ada for the mixed-kind thread. Tap the title to switch Default ↔ Blue.
 
-Lock 5 keyboard-up shot: `BIMBEL_SHOT=ada` (env) or `-BIMBEL_SHOT ada` (args). Simulator → I/O → Keyboard → Connect Hardware Keyboard **off**. Sample opens Ada and focuses the layout-guide-pinned text view so software QWERTZ stands.
+QA shots: `BIMBEL_SHOT=inbox|ada|design` (env or `-BIMBEL_SHOT ada`) and `BIMBEL_THEME=blue` (or `-BIMBEL_THEME blue`). Ada keyboard-up: Simulator → I/O → Keyboard → Connect Hardware Keyboard **off**. Sample opens Ada and focuses the layout-guide-pinned text view so software QWERTZ stands.

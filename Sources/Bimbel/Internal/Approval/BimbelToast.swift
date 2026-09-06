@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 enum BimbelToast {
     static func show(_ text: String, in view: UIView, theme: ConversationTheme) {
         view.viewWithTag(Self.tag)?.removeFromSuperview()
@@ -22,15 +23,10 @@ enum BimbelToast {
             label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24)
         ])
         label.layoutMargins = UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
-        let inset = UIView()
-        inset.isUserInteractionEnabled = false
-        label.addSubview(inset)
-        NSLayoutConstraint.activate([
-            label.heightAnchor.constraint(greaterThanOrEqualToConstant: 36)
-        ])
         label.alpha = 0
         UIView.animate(withDuration: 0.2) { label.alpha = 1 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
             UIView.animate(withDuration: 0.25, animations: { label.alpha = 0 }) { _ in
                 label.removeFromSuperview()
             }

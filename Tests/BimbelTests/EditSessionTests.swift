@@ -1,6 +1,7 @@
 import XCTest
 @testable import Bimbel
 
+@MainActor
 final class EditSessionTests: XCTestCase {
     func testShip4Section3Tokens() {
         let layout = ConversationTheme.default.layout
@@ -26,6 +27,7 @@ final class EditSessionTests: XCTestCase {
         var session = EditSession()
         _ = session.admit([.photo(data: Data([UInt8(1)]))], limit: 10)
         let vc = MediaApprovalViewController(session: session, theme: .default)
+        vc.loadViewIfNeeded()
         let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         host.addSubview(vc.view)
         vc.view.frame = host.bounds

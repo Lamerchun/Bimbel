@@ -1,4 +1,5 @@
 import AVFoundation
+import Foundation
 import Photos
 import PhotosUI
 import UniformTypeIdentifiers
@@ -10,8 +11,7 @@ enum MediaIntakeLoader {
         completion: @escaping @MainActor ([EditSession.Item]) -> Void
     ) {
         let group = DispatchGroup()
-        let lock = NSLock()
-        var collected: [(Int, EditSession.Item)] = []
+        let collected = IntakeCollector()
         for (index, result) in results.enumerated() {
             let provider = result.itemProvider
             if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) {
@@ -24,14 +24,13 @@ enum MediaIntakeLoader {
                         poster: MediaRender.poster(for: copied),
                         duration: MediaRender.duration(for: copied)
                     )
-                    lock.lock()
                     collected.append((index, item))
-                    lock.unlock()
                 }
             } else if provider.canLoadObject(ofClass: UIImage.self) {
                 group.enter()
                 provider.loadObject(ofClass: UIImage.self) { object, _ in
                     defer { group.leave() }
+                    // Consume `UIImage` inside this callback; only `Data` is stored.
                     guard let image = object as? UIImage,
                           let data = MediaRender.jpegData(from: image)
                     else { return }
@@ -40,15 +39,13 @@ enum MediaIntakeLoader {
                         width: Int(image.size.width * image.scale),
                         height: Int(image.size.height * image.scale)
                     )
-                    lock.lock()
                     collected.append((index, item))
-                    lock.unlock()
                 }
             }
         }
         group.notify(queue: .main) {
-            let items = collected.sorted { $0.0 < $1.0 }.map(\.1)
-            completion(items)
+            let items = collected.sortedItems()
+            MainActor.assumeIsolated { completion(items) }
         }
     }
 
@@ -80,7 +77,7 @@ enum MediaIntakeLoader {
                 guard let urlAsset = avAsset as? AVURLAsset,
                       let copied = copyToTemp(urlAsset.url, ext: urlAsset.url.pathExtension)
                 else {
-                    DispatchQueue.main.async { completion(nil) }
+                    hopToMain { completion(nil) }
                     return
                 }
                 let item = EditSession.Item.video(
@@ -88,7 +85,7 @@ enum MediaIntakeLoader {
                     poster: MediaRender.poster(for: copied),
                     duration: MediaRender.duration(for: copied)
                 )
-                DispatchQueue.main.async { completion(item) }
+                hopToMain { completion(item) }
             }
             return
         }
@@ -97,16 +94,20 @@ enum MediaIntakeLoader {
         options.isNetworkAccessAllowed = true
         PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, _, _, _ in
             guard let data, let image = UIImage(data: data), let jpeg = MediaRender.jpegData(from: image) else {
-                DispatchQueue.main.async { completion(nil) }
+                hopToMain { completion(nil) }
                 return
             }
-            DispatchQueue.main.async {
-                completion(.photo(
-                    data: jpeg,
-                    width: Int(image.size.width * image.scale),
-                    height: Int(image.size.height * image.scale)
-                ))
+            let width = Int(image.size.width * image.scale)
+            let height = Int(image.size.height * image.scale)
+            hopToMain {
+                completion(.photo(data: jpeg, width: width, height: height))
             }
+        }
+    }
+
+    private static func hopToMain(_ work: @escaping @MainActor () -> Void) {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { work() }
         }
     }
 
@@ -120,5 +121,24 @@ enum MediaIntakeLoader {
         } catch {
             return nil
         }
+    }
+}
+
+/// Gathers picker results off the main actor. A class + lock so Swift 6 does not
+/// see concurrent mutation of a captured `var`.
+private final class IntakeCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pairs: [(Int, EditSession.Item)] = []
+
+    func append(_ pair: (Int, EditSession.Item)) {
+        lock.lock()
+        pairs.append(pair)
+        lock.unlock()
+    }
+
+    func sortedItems() -> [EditSession.Item] {
+        lock.lock()
+        defer { lock.unlock() }
+        return pairs.sorted { $0.0 < $1.0 }.map(\.1)
     }
 }

@@ -1,6 +1,7 @@
 import XCTest
 @testable import Bimbel
 
+@MainActor
 final class ConversationMessageMenuTests: XCTestCase {
     func testTextMenuOrderAndEditGate() {
         let text = Message(

@@ -1,6 +1,7 @@
 import XCTest
 @testable import Bimbel
 
+@MainActor
 final class MediaPagerTests: XCTestCase {
     func testCollectsOnlyImageAndVideoInOrder() {
         let messages = [

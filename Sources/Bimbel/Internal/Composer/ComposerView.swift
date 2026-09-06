@@ -539,21 +539,3 @@ final class ReplyQuoteView: UIView {
 
     @objc private func close() { onClose?() }
 }
-
-extension UIImage.SymbolConfiguration {
-    /// Composer / long-press / selection family: 22 pt line, never a symbol plate.
-    static let bimbelComposerLinePointSize: CGFloat = 22
-    static let bimbelComposerLineWeight: UIImage.SymbolWeight = .ultraLight
-    static let bimbelComposerLine = UIImage.SymbolConfiguration(
-        pointSize: bimbelComposerLinePointSize,
-        weight: bimbelComposerLineWeight
-    )
-}
-
-extension UIImage {
-    /// SF line glyph in the composer family (ultraLight, no plate).
-    static func bimbelComposerLine(_ systemName: String) -> UIImage? {
-        UIImage(systemName: systemName, withConfiguration: .bimbelComposerLine)?
-            .withRenderingMode(.alwaysTemplate)
-    }
-}

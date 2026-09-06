@@ -514,10 +514,15 @@ open class ConversationViewController: UIViewController {
         let used = approvalController?.session.items.count ?? 0
         let remaining = max(0, theme.layout.maxAttachmentsPerSend - used)
         if remaining == 0 {
-            let host = approvalController?.view ?? view
+            let toastHost: UIView
+            if let approvalView = approvalController?.view {
+                toastHost = approvalView
+            } else {
+                toastHost = view
+            }
             BimbelToast.show(
                 EditSession.overLimitMessage(limit: theme.layout.maxAttachmentsPerSend),
-                in: host,
+                in: toastHost,
                 theme: theme
             )
             return
@@ -926,11 +931,10 @@ extension ConversationViewController: ComposerViewDelegate {
 
 extension ConversationViewController: PHPickerViewControllerDelegate {
     public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        picker.dismiss(animated: true) {
-            guard !results.isEmpty else { return }
-            MediaIntakeLoader.items(from: results) { [weak self] items in
-                self?.presentApproval(admitting: items)
-            }
+        picker.dismiss(animated: true)
+        guard !results.isEmpty else { return }
+        MediaIntakeLoader.items(from: results) { [weak self] items in
+            self?.presentApproval(admitting: items)
         }
     }
 }
@@ -941,10 +945,12 @@ extension ConversationViewController: UIImagePickerControllerDelegate, UINavigat
     }
 
     public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-        picker.dismiss(animated: true) {
-            if let item = MediaIntakeLoader.item(fromCamera: info) {
-                self.presentApproval(admitting: [item])
-            }
+        // Decode on this MainActor method so the dismiss completion does not
+        // capture non-Sendable `info` (Swift 6.1).
+        let item = MediaIntakeLoader.item(fromCamera: info)
+        picker.dismiss(animated: true)
+        if let item {
+            presentApproval(admitting: [item])
         }
     }
 }
