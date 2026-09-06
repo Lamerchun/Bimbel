@@ -15,8 +15,9 @@ open class InboxViewController: UIViewController {
 
     private let wallpaper = UIView()
     private let tableView = UITableView(frame: .zero, style: .plain)
-    private var diffable: UITableViewDiffableDataSource<Int, ConversationID>!
+    private var diffable: UITableViewDiffableDataSource<InboxListSection, ConversationID>!
     private let headerView = InboxHeaderView()
+    private let searchController = UISearchController(searchResultsController: nil)
     private var headerHeightConstraint: NSLayoutConstraint?
     private var snapshot = InboxSnapshot(items: [])
     private var query = ""
@@ -42,7 +43,9 @@ open class InboxViewController: UIViewController {
         super.viewDidLoad()
         NavigationChrome.hideSystemBar(in: self, animated: false)
         navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        definesPresentationContext = true
         view.backgroundColor = theme.colors.wallpaper
+        configureSearch()
         configureHierarchy()
         configureTable()
         apply(dataSource.snapshot(), animatingDifferences: false)
@@ -66,8 +69,26 @@ open class InboxViewController: UIViewController {
     }
 
     public func apply(_ snapshot: InboxSnapshot, animatingDifferences: Bool) {
+        let previous = itemsByID
         self.snapshot = snapshot
+        if canReconfigureTyping(from: previous, to: snapshot.items) {
+            updateVisibleTyping(from: previous)
+            return
+        }
         reloadVisible(animating: animatingDifferences)
+    }
+
+    private var itemsByID: [ConversationID: InboxItem] {
+        Dictionary(uniqueKeysWithValues: snapshot.items.map { ($0.id, $0) })
+    }
+
+    private func configureSearch() {
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.hidesNavigationBarDuringPresentation = false
+        searchController.searchBar.placeholder = String(localized: "Search")
+        searchController.searchBar.autocapitalizationType = .none
+        searchController.searchBar.returnKeyType = .search
     }
 
     private func configureHierarchy() {
@@ -78,9 +99,9 @@ open class InboxViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.isOpaque = false
         tableView.contentInsetAdjustmentBehavior = .never
-        tableView.separatorInset = UIEdgeInsets(top: 0, left: 78, bottom: 0, right: 0)
-        tableView.rowHeight = 68
-        tableView.estimatedRowHeight = 68
+        tableView.separatorInset = UIEdgeInsets(top: 0, left: InboxRowMetrics.separatorInset, bottom: 0, right: 0)
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = InboxRowMetrics.estimatedRowHeight(theme: theme)
         tableView.keyboardDismissMode = .onDrag
         tableView.delegate = self
         view.addSubview(tableView)
@@ -88,6 +109,7 @@ open class InboxViewController: UIViewController {
 
         view.addSubview(headerView)
         headerView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.embedSearchBar(searchController.searchBar)
         let height = headerView.heightAnchor.constraint(equalToConstant: 180)
         headerHeightConstraint = height
         NSLayoutConstraint.activate([
@@ -96,12 +118,6 @@ open class InboxViewController: UIViewController {
             headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             height
         ])
-        headerView.onQueryChange = { [weak self] query in
-            guard let self else { return }
-            self.query = query
-            self.actions.onSearch?(query)
-            self.reloadVisible(animating: false)
-        }
         headerView.onFilterChange = { [weak self] unreadOnly in
             self?.unreadOnly = unreadOnly
             self?.reloadVisible(animating: true)
@@ -113,15 +129,27 @@ open class InboxViewController: UIViewController {
 
     private func configureTable() {
         tableView.register(InboxRowCell.self, forCellReuseIdentifier: InboxRowCell.reuseID)
-        diffable = UITableViewDiffableDataSource<Int, ConversationID>(tableView: tableView) { [weak self] tableView, indexPath, id in
+        diffable = UITableViewDiffableDataSource<InboxListSection, ConversationID>(tableView: tableView) {
+            [weak self] tableView, indexPath, id in
             guard let self,
                   let item = self.snapshot.items.first(where: { $0.id == id })
             else { return UITableViewCell() }
-            let cell = tableView.dequeueReusableCell(withIdentifier: InboxRowCell.reuseID, for: indexPath) as! InboxRowCell
-            cell.configure(item: item, theme: self.theme)
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: InboxRowCell.reuseID,
+                for: indexPath
+            ) as! InboxRowCell
+            cell.configure(
+                item: item,
+                theme: self.theme,
+                hidesTrailingAccessories: self.isSearchOverride
+            )
             return cell
         }
         diffable.defaultRowAnimation = .fade
+    }
+
+    private var isSearchOverride: Bool {
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func applyChrome() {
@@ -129,16 +157,52 @@ open class InboxViewController: UIViewController {
         view.backgroundColor = theme.colors.wallpaper
         tableView.separatorColor = theme.colors.composerStroke
         tableView.backgroundColor = .clear
+        tableView.estimatedRowHeight = InboxRowMetrics.estimatedRowHeight(theme: theme)
         headerView.apply(title: titleText, theme: theme)
         tableView.reloadData()
     }
 
     private func reloadVisible(animating: Bool) {
-        let items = InboxFiltering.visible(items: snapshot.items, query: query, unreadOnly: unreadOnly)
-        var next = NSDiffableDataSourceSnapshot<Int, ConversationID>()
-        next.appendSections([0])
-        next.appendItems(items.map(\.id), toSection: 0)
-        diffable.apply(next, animatingDifferences: animating)
+        let parts = InboxFiltering.sections(items: snapshot.items, query: query, unreadOnly: unreadOnly)
+        var next = NSDiffableDataSourceSnapshot<InboxListSection, ConversationID>()
+        if !parts.pinned.isEmpty {
+            next.appendSections([.pinned])
+            next.appendItems(parts.pinned.map(\.id), toSection: .pinned)
+        }
+        next.appendSections([.chats])
+        next.appendItems(parts.chats.map(\.id), toSection: .chats)
+        let current = diffable.snapshot()
+        if current.itemIdentifiers == next.itemIdentifiers,
+           current.sectionIdentifiers == next.sectionIdentifiers
+        {
+            next.reconfigureItems(next.itemIdentifiers)
+            diffable.apply(next, animatingDifferences: false)
+        } else {
+            diffable.apply(next, animatingDifferences: animating)
+        }
+    }
+
+    private func canReconfigureTyping(from previous: [ConversationID: InboxItem], to next: [InboxItem]) -> Bool {
+        guard previous.count == next.count else { return false }
+        for item in next {
+            guard let old = previous[item.id] else { return false }
+            var probe = old
+            probe.isTyping = item.isTyping
+            if probe != item { return false }
+        }
+        return true
+    }
+
+    private func updateVisibleTyping(from previous: [ConversationID: InboxItem]) {
+        for cell in tableView.visibleCells {
+            guard let row = cell as? InboxRowCell,
+                  let indexPath = tableView.indexPath(for: row),
+                  let item = item(at: indexPath)
+            else { continue }
+            if previous[item.id]?.isTyping != item.isTyping {
+                row.applyTyping(item.isTyping)
+            }
+        }
     }
 
     private func item(at indexPath: IndexPath) -> InboxItem? {
@@ -154,22 +218,50 @@ extension InboxViewController: UITableViewDelegate {
         actions.onOpen?(item.id)
     }
 
+    public func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        guard diffable.sectionIdentifier(for: section) == .pinned else { return nil }
+        let wrap = UIView()
+        wrap.backgroundColor = .clear
+        let label = UILabel()
+        label.text = String(localized: "Pinned")
+        label.font = theme.fonts.chip
+        label.textColor = theme.colors.metadata
+        label.translatesAutoresizingMaskIntoConstraints = false
+        wrap.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: wrap.trailingAnchor, constant: -16),
+            label.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -4)
+        ])
+        return wrap
+    }
+
+    public func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        diffable.sectionIdentifier(for: section) == .pinned ? 28 : 0
+    }
+
     public func tableView(
         _ tableView: UITableView,
         leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         guard let item = item(at: indexPath) else { return nil }
-        let pin = UIContextualAction(style: .normal, title: item.isPinned ? String(localized: "Unpin") : String(localized: "Pin")) { [weak self] _, _, done in
-            self?.actions.onPin?(item.id)
+        let read = UIContextualAction(
+            style: .normal,
+            title: item.showsUnread ? String(localized: "Read") : String(localized: "Unread")
+        ) { [weak self] _, _, done in
+            self?.actions.onToggleRead?(item.id)
             done(true)
         }
-        pin.backgroundColor = theme.colors.accent
-        let mute = UIContextualAction(style: .normal, title: item.isMuted ? String(localized: "Unmute") : String(localized: "Mute")) { [weak self] _, _, done in
-            self?.actions.onMute?(item.id)
+        read.backgroundColor = theme.colors.accent
+        let pin = UIContextualAction(
+            style: .normal,
+            title: item.isPinned ? String(localized: "Unpin") : String(localized: "Pin")
+        ) { [weak self] _, _, done in
+            self?.actions.pin(item.id)
             done(true)
         }
-        mute.backgroundColor = .systemGray
-        let config = UISwipeActionsConfiguration(actions: [pin, mute])
+        pin.backgroundColor = .systemOrange
+        let config = UISwipeActionsConfiguration(actions: [read, pin])
         config.performsFirstActionWithFullSwipe = false
         return config
     }
@@ -179,10 +271,62 @@ extension InboxViewController: UITableViewDelegate {
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         guard let item = item(at: indexPath) else { return nil }
+        let mute = UIContextualAction(
+            style: .normal,
+            title: item.isMuted ? String(localized: "Unmute") : String(localized: "Mute")
+        ) { [weak self] _, _, done in
+            self?.actions.mute(item.id)
+            done(true)
+        }
+        mute.backgroundColor = .systemGray
         let delete = UIContextualAction(style: .destructive, title: String(localized: "Delete")) { [weak self] _, _, done in
             self?.actions.onDelete?(item.id)
             done(true)
         }
-        return UISwipeActionsConfiguration(actions: [delete])
+        // First action sits at the trailing edge; delete is last in the catalog and at the edge.
+        let config = UISwipeActionsConfiguration(actions: [delete, mute])
+        config.performsFirstActionWithFullSwipe = false
+        return config
+    }
+
+    public func tableView(
+        _ tableView: UITableView,
+        contextMenuConfigurationForRowAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let item = item(at: indexPath) else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return nil }
+            var children: [UIMenuElement] = [
+                UIAction(
+                    title: item.showsUnread ? String(localized: "Read") : String(localized: "Unread")
+                ) { _ in
+                    self.actions.onToggleRead?(item.id)
+                },
+                UIAction(title: item.isPinned ? String(localized: "Unpin") : String(localized: "Pin")) { _ in
+                    self.actions.pin(item.id)
+                },
+                UIAction(title: item.isMuted ? String(localized: "Unmute") : String(localized: "Mute")) { _ in
+                    self.actions.mute(item.id)
+                }
+            ]
+            if self.actions.offersArchive {
+                children.append(UIAction(title: String(localized: "Archive")) { _ in
+                    self.actions.onArchive?(item.id)
+                })
+            }
+            children.append(UIAction(title: String(localized: "Delete"), attributes: .destructive) { _ in
+                self.actions.onDelete?(item.id)
+            })
+            return UIMenu(children: children)
+        }
+    }
+}
+
+extension InboxViewController: UISearchResultsUpdating {
+    public func updateSearchResults(for searchController: UISearchController) {
+        query = searchController.searchBar.text ?? ""
+        actions.onSearch?(query)
+        reloadVisible(animating: false)
     }
 }

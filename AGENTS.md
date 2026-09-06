@@ -42,7 +42,7 @@ inbox.apply(store.snapshot(), animatingDifferences: false)
 - `ImageSource` is `asset` / `url` / `data` only. No `uiImage` on the model.
 - `MessageKind` has no `linkPreview` case — put previews on `.text(_, preview:)`.
 - Thread list basis is UIKit `UICollectionView` + ChatLayout. Do not replace it with SwiftUI `List`/`ScrollView`.
-- Inbox is a `UITableView` (swipe pin/mute/delete). Same theme tokens. No second look.
+- Inbox is a `UITableView` (leading read/pin, trailing mute/delete). Same theme tokens. No second look.
 - Do not use InputBarAccessoryView. Zustand B composer is ours.
 - Keyboard: Signal-iOS `ConversationBottomBar` — composer stays in the VC, `bottomAnchor = keyboardLayoutGuide.topAnchor` when `shouldAttachToKeyboardLayoutGuide` is true. No `inputAccessoryView`. `keyboardDismissMode = .interactive`. Tap Message focuses immediately (`textViewShouldBeginEditing` returns true).
 - Do not give ChatLayout `additionalSafeAreaInsets` for the keyboard. One inset owner (`ComposerKeyboardTracker`): covering edge is composer top + `listComposerGap` (8). Do not add keyboard height on top of the layout-guide pin. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`. `detach()` on the main actor; do not touch observers in `deinit`.

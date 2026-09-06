@@ -17,10 +17,11 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         items = Self.seedItems(now: now)
         threads[adaID] = Self.seedAda(me: me, them: "ada")
         threads["jules"] = Self.shortThread(idPrefix: "j", peer: "jules", me: me, line: "Call me when you land.", minutesAgo: 80)
-        threads["design"] = Self.shortThread(idPrefix: "d", peer: "design", me: me, line: "Deck is in the shared folder.", minutesAgo: 180, outgoingLast: false)
+        threads["design"] = Self.shortThread(idPrefix: "d", peer: "design", me: me, line: "Moodboard is in the shared folder.", minutesAgo: 180, outgoingLast: false)
         threads["mira"] = Self.shortThread(idPrefix: "mi", peer: "mira", me: me, line: "Did you lock the studio?", minutesAgo: 12)
-        threads["nico"] = Self.shortThread(idPrefix: "n", peer: "nico", me: me, line: "Call me when you're free.", minutesAgo: 3 * 1_440)
-        threads["studio"] = Self.shortThread(idPrefix: "s", peer: "studio", me: me, line: "Catching up after the show.", minutesAgo: 2 * 1_440)
+        threads["nico"] = Self.shortThread(idPrefix: "n", peer: "nico", me: me, line: InboxAttachmentLabel.photo, minutesAgo: 3 * 1_440)
+        threads["studio"] = Self.shortThread(idPrefix: "s", peer: "studio", me: me, line: "Catching up after the show. Save me a seat near the back.", minutesAgo: 2 * 1_440)
+        threads["kai"] = Self.shortThread(idPrefix: "k", peer: "kai", me: me, line: "Saturday still work?", minutesAgo: 40)
     }
 
     func snapshot() -> InboxSnapshot {
@@ -72,6 +73,8 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             return Participant(id: "studio", displayName: "Studio", avatar: .data(Self.glyphData(title: "S", color: .systemGray)))
         case "design":
             return Participant(id: "design", displayName: "Design", avatar: .data(Self.glyphData(title: "D", color: .systemTeal)))
+        case "kai":
+            return Participant(id: "kai", displayName: "Kai", avatar: .data(Self.glyphData(title: "K", color: .systemIndigo)))
         default:
             return nil
         }
@@ -111,7 +114,11 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             item.preview = text
             item.timestamp = message.sentAt
             item.unreadCount = 0
+            item.markedUnread = false
             item.isTyping = false
+            item.draftPreview = nil
+            item.previewSenderName = nil
+            item.lastOutgoingDelivery = .sent
         }
         return message
     }
@@ -154,6 +161,10 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             item.preview = preview
             item.timestamp = message.sentAt
             item.unreadCount = 0
+            item.markedUnread = false
+            item.draftPreview = nil
+            item.previewSenderName = nil
+            item.lastOutgoingDelivery = .sent
         }
         return message
     }
@@ -169,9 +180,13 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         )
         threads[conversationID, default: []].append(message)
         updateItem(conversationID) { item in
-            item.preview = "Voice message"
+            item.preview = InboxAttachmentLabel.voice
             item.timestamp = message.sentAt
             item.unreadCount = 0
+            item.markedUnread = false
+            item.draftPreview = nil
+            item.previewSenderName = nil
+            item.lastOutgoingDelivery = .sent
         }
         return message
     }
@@ -192,7 +207,21 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
     }
 
     func markRead(_ id: ConversationID) {
-        updateItem(id) { $0.unreadCount = 0 }
+        updateItem(id) {
+            $0.unreadCount = 0
+            $0.markedUnread = false
+        }
+    }
+
+    func toggleRead(_ id: ConversationID) {
+        updateItem(id) { item in
+            if item.showsUnread {
+                item.unreadCount = 0
+                item.markedUnread = false
+            } else {
+                item.markedUnread = true
+            }
+        }
     }
 
     func togglePin(_ id: ConversationID) {
@@ -227,12 +256,13 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             InboxItem(
                 id: "design",
                 title: "Design",
-                preview: "Deck is in the shared folder.",
+                preview: "Moodboard is in the shared folder.",
                 timestamp: now.addingTimeInterval(-180 * 60),
                 avatar: .data(glyphData(title: "D", color: .systemTeal)),
-                unreadCount: 0,
                 isPinned: true,
-                isGroup: true
+                isGroup: true,
+                previewSenderName: "Mira",
+                participantNames: ["Mira", "Ada", "Jules"]
             ),
             InboxItem(
                 id: "sample-thread",
@@ -240,7 +270,9 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
                 preview: "On my way.",
                 timestamp: now.addingTimeInterval(-2 * 60),
                 avatar: adaAvatar,
-                unreadCount: 4
+                unreadCount: 4,
+                lastOutgoingDelivery: .read,
+                participantNames: ["Ada"]
             ),
             InboxItem(
                 id: "mira",
@@ -249,7 +281,8 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
                 timestamp: now.addingTimeInterval(-12 * 60),
                 avatar: .data(glyphData(title: "M", color: .systemPurple)),
                 unreadCount: 1,
-                isTyping: true
+                isTyping: true,
+                participantNames: ["Mira"]
             ),
             InboxItem(
                 id: "jules",
@@ -257,23 +290,35 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
                 preview: "Call me when you land.",
                 timestamp: now.addingTimeInterval(-80 * 60),
                 avatar: .data(glyphData(title: "J", color: .systemOrange)),
-                isMuted: true
+                isMuted: true,
+                participantNames: ["Jules"]
+            ),
+            InboxItem(
+                id: "kai",
+                title: "Kai",
+                preview: "Saturday still work?",
+                timestamp: now.addingTimeInterval(-40 * 60),
+                avatar: .data(glyphData(title: "K", color: .systemIndigo)),
+                draftPreview: .text("Ask about Saturday"),
+                participantNames: ["Kai"]
             ),
             InboxItem(
                 id: "nico",
                 title: "Nico",
-                preview: "Call me when you're free.",
+                preview: InboxAttachmentLabel.photo,
                 timestamp: now.addingTimeInterval(-3 * 86_400),
                 avatar: .data(glyphData(title: "N", color: .systemBlue)),
-                unreadCount: 2
+                markedUnread: true,
+                participantNames: ["Nico"]
             ),
             InboxItem(
                 id: "studio",
                 title: "Studio",
-                preview: "Catching up after the show.",
+                preview: "Catching up after the show. Save me a seat near the back.",
                 timestamp: now.addingTimeInterval(-2 * 86_400),
                 avatar: .data(glyphData(title: "S", color: .systemGray)),
-                isMuted: true
+                isMuted: true,
+                participantNames: ["Studio"]
             )
         ]
     }

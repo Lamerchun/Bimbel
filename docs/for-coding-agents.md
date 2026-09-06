@@ -26,8 +26,11 @@ conversation.apply(snapshot, animatingDifferences: true)
 
 ### Inbox
 
-- `InboxItem`: `id` (`ConversationID`), `title`, `preview`, `timestamp`, `avatar`, `unreadCount`, `isPinned`, `isMuted`, `isTyping`, `isGroup`.
-- `InboxActions.onOpen(ConversationID)` from the row. Pin / mute / delete are host persistence; then `apply` again.
+- `InboxItem`: `id` (`ConversationID`), `title`, `preview`, `timestamp`, `avatar`, `unreadCount` **or** `markedUnread`, `isMuted`, `isPinned`, `draftPreview?`, `previewSenderName?`, `lastOutgoingDelivery?`, `previewOverride?`, `participantNames`, `isTyping`, `isGroup`.
+- Preview priority: host override → draft (`Draft:` / voice draft + mic) → typing → group `Sender:` + body → 1:1 body (attachment labels such as Photo, Video, Voice).
+- Row: 56 pt avatar, mute glyph on the title line, fixed 2-line preview, unread pill or empty unread dot, outgoing ticks only when the preview is the host’s last message. Search hides unread + status.
+- `InboxActions`: `onOpen`, `onToggleRead`, `onTogglePin`, `onToggleMute`, `onDelete`. Archive on the long-press menu only when `supportsArchive` / `onArchive` is set. Host persists, then `apply` again.
+- Search V1 is `UISearchController` (title + participant names only). Optional `Pinned` section from `isPinned`.
 - Package never mints conversation IDs.
 
 ### Thread

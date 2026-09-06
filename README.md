@@ -32,8 +32,9 @@ let inbox = InboxViewController(
     theme: .default,            // or .blue / your tokens
     actions: InboxActions(
         onOpen: { id in showThread(id) },
-        onPin: { id in store.togglePin(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
-        onMute: { id in store.toggleMute(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
+        onToggleRead: { id in store.toggleRead(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
+        onTogglePin: { id in store.togglePin(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
+        onToggleMute: { id in store.toggleMute(id); inbox.apply(store.snapshot(), animatingDifferences: true) },
         onDelete: { id in store.delete(id); inbox.apply(store.snapshot(), animatingDifferences: true) }
     )
 )

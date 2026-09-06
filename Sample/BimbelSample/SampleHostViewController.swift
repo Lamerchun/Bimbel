@@ -98,11 +98,15 @@ final class SampleHostViewController: UIViewController {
                 self?.refreshInbox()
                 self?.openConversation(id)
             },
-            onPin: { [weak self] id in
+            onToggleRead: { [weak self] id in
+                self?.store.toggleRead(id)
+                self?.refreshInbox()
+            },
+            onTogglePin: { [weak self] id in
                 self?.store.togglePin(id)
                 self?.refreshInbox()
             },
-            onMute: { [weak self] id in
+            onToggleMute: { [weak self] id in
                 self?.store.toggleMute(id)
                 self?.refreshInbox()
             },
