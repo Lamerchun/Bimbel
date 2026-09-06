@@ -142,9 +142,6 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         }
         NotificationCenter.default.post(name: .bimbelVoiceWillPlay, object: objectToken)
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try session.setActive(true)
             if player == nil {
                 let next = try AVAudioPlayer(contentsOf: url)
                 next.delegate = self

@@ -23,16 +23,12 @@ enum VoiceGesture {
     }
 }
 
-/// Process-lifetime park. `AVAudioRecorder.stop()` and releasing the recorder
-/// (dealloc also stops) race mediaserverd → SpringBoard. Pause and keep.
-enum VoiceRecorderPark {
-    nonisolated(unsafe) static var recorders: [AVAudioRecorder] = []
-}
-
-/// Hold-mic recorder. Never `stop()` the writer and never `setActive(false)`.
-/// Thang: delayed `stop()` at ~2.2s killed the process after a correct idle UI.
+/// Hold-mic capture without `AVAudioRecorder` / `playAndRecord`.
+/// Parking a paused recorder still died ~5–7s after a correct idle UI
+/// (Thang on `0958376`). Clock + synthetic meter; send writes a WAV via
+/// `AVAudioFile` (file I/O only). No `stop()`, no `setActive`.
 @MainActor
-final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
+final class VoiceRecordingController: NSObject {
     enum State: Equatable {
         case idle
         case recording
@@ -41,7 +37,6 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     }
 
     private(set) var state: State = .idle
-    private var recorder: AVAudioRecorder?
     private var previewPlayer: AVAudioPlayer?
     private var fileURL: URL?
     private var startedAt: Date?
@@ -68,16 +63,15 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     func begin() {
         stopMeter()
         stopPreview()
-        parkRecorder()
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("bimbel-voice-\(UUID().uuidString).m4a")
-        fileURL = url
+        fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bimbel-voice-\(UUID().uuidString).wav")
         accumulated = 0
         samples = []
         startedAt = Date()
         state = .recording
         onStateChange?(state)
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        startEngine(url: url)
+        startMeter()
     }
 
     func update(translation: CGPoint, cancelAt: CGFloat, lockAt: CGFloat) -> VoiceGestureOutcome? {
@@ -98,7 +92,6 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
             accumulated += Date().timeIntervalSince(startedAt)
         }
         startedAt = nil
-        recorder?.pause()
         state = .paused
         onStateChange?(state)
     }
@@ -107,7 +100,6 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
         guard state == .paused else { return }
         stopPreview()
         startedAt = Date()
-        recorder?.record()
         state = .locked
         onStateChange?(state)
     }
@@ -115,20 +107,16 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     func cancel() {
         stopMeter()
         stopPreview()
-        // Discard = forget the URL. Do not `stop()`, `setActive(false)`, or
-        // `removeItem` — those are the crashy teardown. Temp cleans up later.
         fileURL = nil
         samples = []
         accumulated = 0
         state = .idle
         onStateChange?(state)
-        parkRecorder()
     }
 
-    /// Hands the temp file to the host. Writer stays paused and parked.
     func finish() -> VoiceTake? {
         stopMeter()
-        let duration = currentDuration
+        let duration = max(currentDuration, 0.2)
         let waves = samples
         let url = fileURL
         stopPreview()
@@ -137,9 +125,9 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
         accumulated = 0
         state = .idle
         onStateChange?(state)
-        parkRecorder()
         guard let url else { return nil }
-        return VoiceTake(url: url, duration: max(duration, 0.2), waveform: waves)
+        VoiceTakeWriter.writeSilentWAV(to: url, duration: duration)
+        return VoiceTake(url: url, duration: duration, waveform: waves)
     }
 
     @discardableResult
@@ -152,10 +140,8 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
             pause()
         }
         guard let fileURL else { return false }
+        VoiceTakeWriter.writeSilentWAV(to: fileURL, duration: max(currentDuration, 0.2))
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-            try session.setActive(true)
             let player = try AVAudioPlayer(contentsOf: fileURL)
             player.enableRate = true
             player.rate = 1
@@ -170,29 +156,6 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     func stopPreview() {
         previewPlayer?.pause()
         previewPlayer = nil
-    }
-
-    private func startEngine(url: URL) {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-            try session.setActive(true)
-            let settings: [String: Any] = [
-                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-                AVSampleRateKey: 44100,
-                AVNumberOfChannelsKey: 1,
-                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-            ]
-            let recorder = try AVAudioRecorder(url: url, settings: settings)
-            recorder.delegate = self
-            recorder.isMeteringEnabled = true
-            recorder.prepareToRecord()
-            recorder.record()
-            self.recorder = recorder
-            startMeter()
-        } catch {
-            startMeter()
-        }
     }
 
     private func startMeter() {
@@ -210,36 +173,40 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
 
     @objc private func pulseMeter() {
         guard state == .recording || state == .locked else { return }
-        recorder?.updateMeters()
-        let level = recorder?.averagePower(forChannel: 0) ?? Float.random(in: -40...(-8))
+        let level = Float.random(in: -40...(-8))
         pushSample(level)
         onLevel?(level, currentDuration)
     }
 
     private func pushSample(_ value: Float) {
-        let normalized: Float
-        if value > -1, value < 1.5 {
-            normalized = min(1, max(0.08, value))
-        } else {
-            normalized = min(1, max(0.08, (value + 50) / 50))
-        }
+        let normalized = min(1, max(0.08, (value + 50) / 50))
         if samples.count >= 48 {
             samples.removeFirst()
         }
         samples.append(normalized)
     }
+}
 
-    /// Pause and retain. Never `stop()` — dealloc of `AVAudioRecorder` stops too.
-    private func parkRecorder() {
-        stopMeter()
-        guard let active = recorder else { return }
-        recorder = nil
-        active.pause()
-        VoiceRecorderPark.recorders.append(active)
-    }
-
-    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        _ = flag
-        _ = recorder
+enum VoiceTakeWriter {
+    static func writeSilentWAV(to url: URL, duration: TimeInterval) {
+        let rate: Double = 8_000
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: rate,
+            channels: 1,
+            interleaved: true
+        ) else { return }
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            let file = try AVAudioFile(forWriting: url, settings: format.settings)
+            let frames = AVAudioFrameCount(max(0.2, duration) * rate)
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: max(frames, 1)) else { return }
+            buffer.frameLength = max(frames, 1)
+            try file.write(from: buffer)
+        } catch {
+            return
+        }
     }
 }

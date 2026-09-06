@@ -161,7 +161,9 @@ final class ComposerKeyboardTracker {
             queue: .main
         ) { [weak self] notification in
             let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
-            MainActor.assumeIsolated {
+            // Do not `assumeIsolated` — a main-queue Notification is not a
+            // MainActor isolation context. A trap here is process death.
+            DispatchQueue.main.async { [weak self] in
                 self?.handleKeyboardFrame(frame, flushingLayout: flushingLayout)
             }
         })

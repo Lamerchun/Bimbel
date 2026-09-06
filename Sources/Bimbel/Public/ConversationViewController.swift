@@ -963,7 +963,9 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidChangeHeight(_ composer: ComposerView) {
-        keyboardTracker.syncListInsets(flushingLayout: true)
+        // `layoutSubviews` calls this. Flushing the list from there trips
+        // UIKit's dequeued-cell assert (EXC_BREAKPOINT / SpringBoard).
+        keyboardTracker.syncListInsets(flushingLayout: false)
     }
 
     func composerShouldBeginEditing(_ composer: ComposerView) -> Bool {

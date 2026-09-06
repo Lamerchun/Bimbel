@@ -60,6 +60,7 @@ final class ComposerView: UIView, UITextViewDelegate {
     }
 
     private var recordingChromeLocked = false
+    private var lastReportedHeight: CGFloat = -1
 
     /// Voice hold/lock: Plus / Camera dim to 0.35. Mic stays accent. No drag handle.
     func setRecordingChromeLocked(_ locked: Bool) {
@@ -295,6 +296,9 @@ final class ComposerView: UIView, UITextViewDelegate {
         actionButton.layer.masksToBounds = false
         pill.backgroundColor = .clear
         pill.layer.borderWidth = 0
+        let height = bounds.height
+        guard abs(height - lastReportedHeight) > 0.5 else { return }
+        lastReportedHeight = height
         delegate?.composerDidChangeHeight(self)
     }
 
