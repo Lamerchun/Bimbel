@@ -224,9 +224,7 @@ public struct ConversationTheme: Sendable {
                     : UIColor.white
             },
             fabIcon: UIColor.secondaryLabel,
-            waveform: UIColor { tc in
-                tc.userInterfaceStyle == .dark ? UIColor.white : UIColor(white: 0.25, alpha: 1)
-            }
+            waveform: UIColor(red: 0.18, green: 0.72, blue: 0.47, alpha: 0.6)
         )
 
         public static let blue = Colors(
@@ -292,19 +290,23 @@ public struct ConversationTheme: Sendable {
                     : UIColor.white
             },
             fabIcon: UIColor.systemBlue,
-            waveform: UIColor.systemBlue
+            waveform: UIColor.systemBlue.withAlphaComponent(0.6)
         )
     }
 
     public struct Materials: Sendable {
         public var headerBlurStyle: UIBlurEffect.Style
+        /// Lock-capsule / composer-family blur. Same chrome as the header until Thang expands.
+        public var composer: UIBlurEffect.Style
         public var usesLiquidGlassWhenAvailable: Bool
 
         public init(
             headerBlurStyle: UIBlurEffect.Style = .systemChromeMaterial,
+            composer: UIBlurEffect.Style = .systemChromeMaterial,
             usesLiquidGlassWhenAvailable: Bool = true
         ) {
             self.headerBlurStyle = headerBlurStyle
+            self.composer = composer
             self.usesLiquidGlassWhenAvailable = usesLiquidGlassWhenAvailable
         }
 
@@ -547,4 +549,9 @@ public struct ConversationTheme: Sendable {
 
         public static let bimbel = Fonts()
     }
+}
+
+extension ConversationTheme.Colors {
+    /// Thang: waveform fill is accent at ~60% until he expands the token.
+    public var waveformAccent: UIColor { accent.withAlphaComponent(0.6) }
 }

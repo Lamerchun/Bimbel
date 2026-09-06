@@ -98,20 +98,24 @@ final class KeyboardInsetTests: XCTestCase {
         XCTAssertNil(ComposerView().textView.inputAccessoryView)
     }
 
-    func testComposerChromeAndFieldDismissKeyboardInteractively() {
+    func testComposerChromeForwardsDismissAndFieldDoesNotSteal() {
         let composer = ComposerView()
         XCTAssertTrue(composer.shouldAttachToKeyboardLayoutGuide)
-        XCTAssertEqual(composer.textView.keyboardDismissMode, .interactive)
-        XCTAssertTrue(composer.textView.alwaysBounceVertical)
-        let scroll = composer.subviews.compactMap { $0 as? UIScrollView }.first
-        XCTAssertEqual(scroll?.keyboardDismissMode, .interactive)
-        XCTAssertEqual(scroll?.alwaysBounceVertical, true)
-        XCTAssertEqual(scroll?.accessibilityIdentifier, "composer.dismiss.scroll")
+        XCTAssertEqual(composer.textView.keyboardDismissMode, .none)
+        XCTAssertFalse(composer.textView.alwaysBounceVertical)
+        XCTAssertNil(composer.subviews.compactMap { $0 as? UIScrollView }.first)
+
+        let listPan = UIPanGestureRecognizer()
+        composer.bindDismissPassthrough(to: listPan)
+        let chrome = composer.gestureRecognizers?.compactMap { $0 as? ComposerChromePanRecognizer }.first
+        XCTAssertNotNil(chrome)
+        XCTAssertTrue(chrome?.forwardTo === listPan)
+        XCTAssertTrue(chrome?.isEnabled ?? false)
 
         composer.isDismissPassthroughEnabled = false
-        XCTAssertEqual(scroll?.isScrollEnabled, false)
+        XCTAssertFalse(chrome?.isEnabled ?? true)
         composer.isDismissPassthroughEnabled = true
-        XCTAssertEqual(scroll?.isScrollEnabled, true)
+        XCTAssertTrue(chrome?.isEnabled ?? false)
     }
 
     func testMicSendFillIsACircleNotTheButtonBackground() {

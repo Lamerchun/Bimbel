@@ -173,9 +173,15 @@ final class SampleHostViewController: UIViewController {
                 self.refreshInbox()
                 return messages
             },
-            onSendVoice: { [weak self] url in
+            onSendVoice: { [weak self] url, duration, waveform, quote in
                 guard let self else { return nil }
-                let message = self.store.sendVoice(url, in: id)
+                let message = self.store.sendVoice(
+                    url,
+                    duration: duration,
+                    waveform: waveform,
+                    quote: quote,
+                    in: id
+                )
                 self.refreshInbox()
                 return message
             },

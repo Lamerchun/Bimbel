@@ -1,27 +1,29 @@
 import UIKit
 
 /// Hold-mic HUD glued to the composer (not a centered modal).
-/// Recording: live waveform + slide-to-cancel + lock well above the mic.
-/// Locked: cancel / pause / send. Hits pass through while the finger is still down.
+/// Recording: live waveform + duration + slide-to-cancel. Lock well above the mic.
+/// Locked: Pause · Preview · Send · Discard. Hits pass through while the finger is still down.
 final class VoiceLockOverlay: UIView {
     var onCancel: (() -> Void)?
     var onLock: (() -> Void)?
     var onPause: (() -> Void)?
+    var onPreview: (() -> Void)?
     var onSend: (() -> Void)?
 
     private let holdBar = UIView()
     private let lockedBar = UIView()
     private let holdFill = ComposerCapsuleFill()
     private let lockedFill = ComposerCapsuleFill()
+    private let lockedMaterial = MaterialFactory.makeComposerEffectView(theme: .default)
     private let waveform = WaveformView()
-    private let lockedWaveform = WaveformView()
     private let timeLabel = UILabel()
     private let lockedTimeLabel = UILabel()
     private let cancelHint = UILabel()
     private let lockWell = HitTargetButton(type: .system)
-    private let cancelButton = HitTargetButton(type: .system)
-    private let pauseButton = HitTargetButton(type: .system)
-    private let sendButton = HitTargetButton(type: .system)
+    let pauseButton = HitTargetButton(type: .system)
+    let previewButton = HitTargetButton(type: .system)
+    let sendButton = HitTargetButton(type: .system)
+    let discardButton = HitTargetButton(type: .system)
     private var theme = ConversationTheme.default
     private var locked = false
 
@@ -34,6 +36,8 @@ final class VoiceLockOverlay: UIView {
         holdBar.backgroundColor = .clear
         lockedBar.backgroundColor = .clear
         lockedBar.isHidden = true
+        lockedBar.clipsToBounds = true
+        lockedBar.layer.cornerCurve = .continuous
 
         timeLabel.font = .monospacedDigitSystemFont(ofSize: 15, weight: .medium)
         lockedTimeLabel.font = timeLabel.font
@@ -46,17 +50,14 @@ final class VoiceLockOverlay: UIView {
         lockWell.accessibilityLabel = String(localized: "Lock recording")
         lockWell.minimumHitSize = CGSize(width: 44, height: 44)
 
-        cancelButton.setImage(UIImage.bimbelComposerLine("trash"), for: .normal)
-        cancelButton.addTarget(self, action: #selector(tapCancel), for: .touchUpInside)
-        cancelButton.accessibilityLabel = String(localized: "Cancel recording")
+        configureLockButton(pauseButton, symbol: "pause", action: #selector(tapPause), label: String(localized: "Pause recording"))
+        configureLockButton(previewButton, symbol: "play", action: #selector(tapPreview), label: String(localized: "Preview recording"))
+        configureLockButton(discardButton, symbol: "trash", action: #selector(tapCancel), label: String(localized: "Discard recording"))
 
-        pauseButton.setImage(UIImage.bimbelComposerLine("pause"), for: .normal)
-        pauseButton.addTarget(self, action: #selector(tapPause), for: .touchUpInside)
-        pauseButton.accessibilityLabel = String(localized: "Pause recording")
-
-        sendButton.setImage(UIImage(systemName: "paperplane.fill"), for: .normal)
+        sendButton.setImage(UIImage.bimbelComposerLine("paperplane.fill"), for: .normal)
         sendButton.addTarget(self, action: #selector(tapSend), for: .touchUpInside)
         sendButton.accessibilityLabel = String(localized: "Send voice message")
+        sendButton.minimumHitSize = CGSize(width: 44, height: 44)
 
         holdBar.addSubview(holdFill)
         holdFill.bimbelPinToEdges(of: holdBar)
@@ -75,12 +76,19 @@ final class VoiceLockOverlay: UIView {
             waveform.heightAnchor.constraint(equalToConstant: 28)
         ])
 
+        lockedMaterial.translatesAutoresizingMaskIntoConstraints = false
+        lockedBar.addSubview(lockedMaterial)
+        lockedMaterial.bimbelPinToEdges(of: lockedBar)
         lockedBar.addSubview(lockedFill)
+        lockedFill.alpha = 0.55
         lockedFill.bimbelPinToEdges(of: lockedBar)
-        let lockedRow = UIStackView(arrangedSubviews: [cancelButton, lockedWaveform, lockedTimeLabel, pauseButton, sendButton])
+        let lockedRow = UIStackView(arrangedSubviews: [
+            pauseButton, previewButton, lockedTimeLabel, sendButton, discardButton
+        ])
         lockedRow.axis = .horizontal
         lockedRow.alignment = .center
-        lockedRow.spacing = 10
+        lockedRow.spacing = 8
+        lockedRow.distribution = .fill
         lockedBar.addSubview(lockedRow)
         lockedRow.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -88,10 +96,10 @@ final class VoiceLockOverlay: UIView {
             lockedRow.leadingAnchor.constraint(equalTo: lockedBar.leadingAnchor, constant: 8),
             lockedRow.trailingAnchor.constraint(equalTo: lockedBar.trailingAnchor, constant: -8),
             lockedRow.bottomAnchor.constraint(equalTo: lockedBar.bottomAnchor),
-            lockedWaveform.heightAnchor.constraint(equalToConstant: 28),
-            cancelButton.widthAnchor.constraint(equalToConstant: 44),
             pauseButton.widthAnchor.constraint(equalToConstant: 44),
-            sendButton.widthAnchor.constraint(equalToConstant: 44)
+            previewButton.widthAnchor.constraint(equalToConstant: 44),
+            sendButton.widthAnchor.constraint(equalToConstant: 44),
+            discardButton.widthAnchor.constraint(equalToConstant: 44)
         ])
 
         [holdBar, lockedBar, lockWell].forEach {
@@ -113,9 +121,19 @@ final class VoiceLockOverlay: UIView {
             lockWell.heightAnchor.constraint(equalToConstant: 44)
         ])
         apply(theme: theme)
+        installVoiceOverActions()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let radius = lockedBar.bounds.height > 1 ? lockedBar.bounds.height / 2 : 24
+        lockedBar.layer.cornerRadius = radius
+        lockedBar.layer.masksToBounds = true
+        lockedMaterial.layer.cornerRadius = radius
+        lockedMaterial.clipsToBounds = true
+    }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let hit = super.hitTest(point, with: event)
@@ -130,8 +148,13 @@ final class VoiceLockOverlay: UIView {
         self.theme = theme
         holdFill.backgroundColor = theme.colors.composerFill
         lockedFill.backgroundColor = theme.colors.composerFill
-        waveform.tintColor = theme.colors.waveform
-        lockedWaveform.tintColor = theme.colors.waveform
+        if theme.materials.usesLiquidGlassWhenAvailable, let effect = MaterialFactory.makeLiquidGlassEffect() {
+            lockedMaterial.effect = effect
+        } else {
+            lockedMaterial.effect = UIBlurEffect(style: theme.materials.composer)
+        }
+        let wave = theme.colors.waveformAccent
+        waveform.tintColor = wave
         timeLabel.textColor = theme.colors.incomingPrimaryText
         lockedTimeLabel.textColor = theme.colors.incomingPrimaryText
         cancelHint.textColor = theme.colors.headerSubtitle
@@ -139,8 +162,9 @@ final class VoiceLockOverlay: UIView {
         lockWell.backgroundColor = theme.colors.composerFill
         lockWell.layer.cornerRadius = 22
         lockWell.layer.masksToBounds = true
-        cancelButton.tintColor = .systemRed
         pauseButton.tintColor = theme.colors.headerTitle
+        previewButton.tintColor = theme.colors.headerTitle
+        discardButton.tintColor = .systemRed
         sendButton.tintColor = theme.colors.sendIcon
         sendButton.backgroundColor = theme.colors.sendFill
         sendButton.layer.cornerRadius = 20
@@ -157,6 +181,7 @@ final class VoiceLockOverlay: UIView {
         cancelHint.alpha = 1
         cancelHint.transform = .identity
         cancelHint.text = String(localized: "Slide to cancel")
+        cancelHint.textColor = theme.colors.headerSubtitle
         lockWell.setImage(UIImage.bimbelComposerLine("lock"), for: .normal)
         accessibilityViewIsModal = false
         UIAccessibility.post(notification: .announcement, argument: String(localized: "Recording. Slide left to cancel, slide up to lock."))
@@ -167,9 +192,12 @@ final class VoiceLockOverlay: UIView {
         holdBar.isHidden = true
         lockedBar.isHidden = false
         lockWell.isHidden = true
-        pauseButton.setImage(UIImage.bimbelComposerLine("pause"), for: .normal)
-        pauseButton.accessibilityLabel = String(localized: "Pause recording")
+        installVoiceOverActions()
         accessibilityViewIsModal = true
+        isAccessibilityElement = false
+        lockedBar.isAccessibilityElement = true
+        lockedBar.accessibilityLabel = String(localized: "Locked recording")
+        lockedBar.accessibilityHint = String(localized: "Pause, preview, send, or discard.")
         UIAccessibility.post(notification: .layoutChanged, argument: pauseButton)
     }
 
@@ -177,9 +205,9 @@ final class VoiceLockOverlay: UIView {
         isHidden = true
         locked = false
         waveform.reset()
-        lockedWaveform.reset()
         cancelHint.transform = .identity
         lockWell.transform = .identity
+        lockedBar.isAccessibilityElement = false
     }
 
     func applyHoldProgress(_ translation: CGPoint, cancelAt: CGFloat, lockAt: CGFloat) {
@@ -188,6 +216,7 @@ final class VoiceLockOverlay: UIView {
         let lock = min(1, max(0, -translation.y / max(lockAt, 1)))
         cancelHint.alpha = 1 - cancel * 0.15
         cancelHint.transform = CGAffineTransform(translationX: min(0, translation.x * 0.35), y: 0)
+        // Secondary → destructive red as the cancel threshold is crossed.
         cancelHint.textColor = cancel > 0.7 ? .systemRed : theme.colors.headerSubtitle
         lockWell.transform = CGAffineTransform(translationX: 0, y: max(-24, translation.y * 0.2))
             .scaledBy(x: 1 + lock * 0.12, y: 1 + lock * 0.12)
@@ -197,7 +226,6 @@ final class VoiceLockOverlay: UIView {
 
     func pushLevel(_ level: Float, duration: TimeInterval) {
         waveform.push(level)
-        lockedWaveform.push(level)
         let clock = BimbelFormatters.duration(duration)
         timeLabel.text = clock
         lockedTimeLabel.text = clock
@@ -209,11 +237,49 @@ final class VoiceLockOverlay: UIView {
         pauseButton.accessibilityLabel = paused
             ? String(localized: "Resume recording")
             : String(localized: "Pause recording")
+        installVoiceOverActions()
+    }
+
+    func setPreviewing(_ playing: Bool) {
+        previewButton.setImage(UIImage.bimbelComposerLine(playing ? "stop.fill" : "play"), for: .normal)
+        previewButton.accessibilityLabel = playing
+            ? String(localized: "Stop preview")
+            : String(localized: "Preview recording")
+        installVoiceOverActions()
+    }
+
+    private func configureLockButton(_ button: HitTargetButton, symbol: String, action: Selector, label: String) {
+        button.setImage(UIImage.bimbelComposerLine(symbol), for: .normal)
+        button.addTarget(self, action: action, for: .touchUpInside)
+        button.accessibilityLabel = label
+        button.minimumHitSize = CGSize(width: 44, height: 44)
+    }
+
+    private func installVoiceOverActions() {
+        lockedBar.accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: pauseButton.accessibilityLabel ?? String(localized: "Pause recording")) { [weak self] _ in
+                self?.onPause?()
+                return true
+            },
+            UIAccessibilityCustomAction(name: previewButton.accessibilityLabel ?? String(localized: "Preview recording")) { [weak self] _ in
+                self?.onPreview?()
+                return true
+            },
+            UIAccessibilityCustomAction(name: String(localized: "Send voice message")) { [weak self] _ in
+                self?.onSend?()
+                return true
+            },
+            UIAccessibilityCustomAction(name: String(localized: "Discard recording")) { [weak self] _ in
+                self?.onCancel?()
+                return true
+            }
+        ]
     }
 
     @objc private func tapCancel() { onCancel?() }
     @objc private func tapLock() { onLock?() }
     @objc private func tapPause() { onPause?() }
+    @objc private func tapPreview() { onPreview?() }
     @objc private func tapSend() { onSend?() }
 }
 
@@ -254,6 +320,18 @@ final class WaveformView: UIView {
         }
         samples.removeFirst()
         samples.append(normalized)
+        setNeedsDisplay()
+    }
+
+    func setSamples(_ values: [Float]) {
+        if values.isEmpty {
+            samples = Array(repeating: 0.2, count: 32)
+        } else {
+            samples = values.prefix(32).map { CGFloat(min(1, max(0.08, $0))) }
+            while samples.count < 32 {
+                samples.append(0.2)
+            }
+        }
         setNeedsDisplay()
     }
 

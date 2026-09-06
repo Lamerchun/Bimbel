@@ -306,6 +306,7 @@ open class ConversationViewController: UIViewController {
         attachmentSheet.onAction = { [weak self] in self?.handleAttachment($0) }
         attachmentSheet.onPickAsset = { [weak self] in self?.stageAsset($0) }
         composer.textView.inputView = nil
+        composer.bindDismissPassthrough(to: collectionView.panGestureRecognizer)
     }
 
     private func bindKeyboardIfNeeded() {
@@ -330,6 +331,7 @@ open class ConversationViewController: UIViewController {
         let locked = voice.state != .idle || isSheetPresented
         keyboardTracker.dismissPanEnabled = !locked
         composer.isDismissPassthroughEnabled = !locked
+        composer.setRecordingChromeLocked(voice.state != .idle)
     }
 
     private func configureVoice() {
@@ -354,6 +356,11 @@ open class ConversationViewController: UIViewController {
         voiceOverlay.onLock = { [weak self] in self?.voice.lock() }
         voiceOverlay.onPause = { [weak self] in
             if self?.voice.state == .paused { self?.voice.resume() } else { self?.voice.pause() }
+        }
+        voiceOverlay.onPreview = { [weak self] in
+            guard let self else { return }
+            let playing = self.voice.togglePreview()
+            self.voiceOverlay.setPreviewing(playing)
         }
         voiceOverlay.onSend = { [weak self] in self?.sendVoice() }
     }
@@ -494,8 +501,12 @@ open class ConversationViewController: UIViewController {
     }
 
     private func sendVoice() {
-        guard let url = voice.finish() else { return }
-        insertHostMessage(actions.onSendVoice?(url))
+        guard let take = voice.finish() else { return }
+        let quote = replyTarget
+        replyTarget = nil
+        composer.apply(theme: theme, sendable: isSendable, sheetPresented: isSheetPresented, reply: nil)
+        insertHostMessage(actions.onSendVoice?(take.url, take.duration, take.waveform, quote))
+        scrollToBottom(animated: true)
     }
 
     private func handleAttachment(_ action: AttachmentAction) {

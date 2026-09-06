@@ -10,6 +10,14 @@ enum MaterialFactory {
         return NonInteractiveEffectView(effect: UIBlurEffect(style: theme.materials.headerBlurStyle))
     }
 
+    /// Lock capsule. `materials.composer` until Thang expands the token.
+    static func makeComposerEffectView(theme: ConversationTheme) -> UIVisualEffectView {
+        if theme.materials.usesLiquidGlassWhenAvailable, let glass = makeLiquidGlassEffect() {
+            return NonInteractiveEffectView(effect: glass)
+        }
+        return NonInteractiveEffectView(effect: UIBlurEffect(style: theme.materials.composer))
+    }
+
     static func makeLiquidGlassEffect() -> UIVisualEffect? {
         guard let effectClass = NSClassFromString("UIGlassEffect") as? NSObject.Type,
               let effect = effectClass.init() as? UIVisualEffect

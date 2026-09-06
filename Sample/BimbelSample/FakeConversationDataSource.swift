@@ -224,12 +224,19 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         return message
     }
 
-    func sendVoice(_ url: URL, in conversationID: ConversationID) -> Message {
+    func sendVoice(
+        _ url: URL,
+        duration: TimeInterval,
+        waveform: [Float],
+        quote: Message?,
+        in conversationID: ConversationID
+    ) -> Message {
         let message = Message(
             id: UUID().uuidString,
             senderID: me,
             sentAt: Date(),
-            kind: .voice(Voice(duration: 4, waveform: [0.2, 0.6, 0.4, 0.9, 0.3, 0.7], fileURL: url)),
+            kind: .voice(Voice(duration: duration, waveform: waveform, fileURL: url)),
+            replyTo: quote?.id,
             delivery: .sent,
             isOutgoing: true
         )

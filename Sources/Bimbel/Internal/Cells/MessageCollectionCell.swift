@@ -341,6 +341,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         mediaView.backgroundColor = .clear
         metadata.prepareForReuse()
         overlayMetadata.prepareForReuse()
+        voiceView.resetPlayback()
         overlayMetadata.isHidden = true
         paddedBody.isHidden = false
         nameLabel.isHidden = true
@@ -367,46 +368,6 @@ extension MessageCollectionCell: UIGestureRecognizerDelegate {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         let v = pan.velocity(in: contentView)
         return abs(v.x) > abs(v.y) && v.x > 0
-    }
-}
-
-final class VoiceMessageView: UIView {
-    private let play = UIImageView(image: UIImage(systemName: "play.fill"))
-    private let wave = WaveformView()
-    private let duration = UILabel()
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        wave.backgroundColor = .clear
-        duration.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        let stack = UIStackView(arrangedSubviews: [play, wave, duration])
-        stack.axis = .horizontal
-        stack.alignment = .center
-        stack.spacing = 8
-        addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
-            wave.widthAnchor.constraint(equalToConstant: 96),
-            wave.heightAnchor.constraint(equalToConstant: 22),
-            play.widthAnchor.constraint(equalToConstant: 18)
-        ])
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func configure(_ voice: Voice, theme: ConversationTheme) {
-        play.tintColor = theme.colors.accent
-        wave.tintColor = theme.colors.waveform
-        duration.textColor = theme.colors.metadata
-        duration.text = BimbelFormatters.duration(voice.duration)
-        wave.reset()
-        for sample in voice.waveform.prefix(32) {
-            wave.push(sample)
-        }
     }
 }
 

@@ -3,7 +3,7 @@ import CoreLocation
 
 /// All closures are optional. Empty `ConversationActions()` is a valid host.
 ///
-/// `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?`.
+/// `onSendText` / `onSendAttachments` / `onSendVoice(url, duration, waveform, quote?)` return `Message?`.
 /// `onSendMedia` returns `[Message]?`.
 /// - non-nil: the package inserts via `apply`
 /// - nil: the host already pushed a snapshot
@@ -19,7 +19,8 @@ public struct ConversationActions {
     /// Camera / picker media after `EditSession`. Caption is the Approval field (may be nil).
     /// Return messages to insert, or nil if the host already called `apply`.
     public var onSendMedia: (([OutgoingMedia], String?) -> [Message]?)?
-    public var onSendVoice: ((URL) -> Message?)?
+    /// Host builds the `Message`. `quote` is the reply target when the composer is quoting.
+    public var onSendVoice: ((URL, TimeInterval, [Float], Message?) -> Message?)?
     public var onReply: ((Message) -> Void)?
     public var onReaction: ((Message, String) -> Void)?
     public var onForward: (([Message]) -> Void)?
@@ -41,7 +42,7 @@ public struct ConversationActions {
         onSendText: ((String) -> Message?)? = nil,
         onSendAttachments: (([StagedAttachment]) -> Message?)? = nil,
         onSendMedia: (([OutgoingMedia], String?) -> [Message]?)? = nil,
-        onSendVoice: ((URL) -> Message?)? = nil,
+        onSendVoice: ((URL, TimeInterval, [Float], Message?) -> Message?)? = nil,
         onReply: ((Message) -> Void)? = nil,
         onReaction: ((Message, String) -> Void)? = nil,
         onForward: (([Message]) -> Void)? = nil,

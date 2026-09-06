@@ -29,6 +29,16 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: 40, y: 10), cancelAt: cancelAt, lockAt: lockAt))
     }
 
+    func testReleaseUnderThresholdSendsAndPastThresholdCancels() {
+        let cancelAt = ConversationTheme.default.layout.voiceCancelTranslation
+        let lockAt = ConversationTheme.default.layout.voiceLockTranslation
+        XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: -40, y: 0), cancelAt: cancelAt, lockAt: lockAt))
+        XCTAssertEqual(
+            VoiceGesture.outcome(translation: CGPoint(x: -80, y: 0), cancelAt: cancelAt, lockAt: lockAt),
+            .cancel
+        )
+    }
+
     func testHoldCopyHasNoBrandNames() {
         let overlay = VoiceLockOverlay()
         overlay.showRecording()
@@ -41,6 +51,77 @@ final class VoiceRecordingTests: XCTestCase {
         overlay.showLocked()
         overlay.hide()
         XCTAssertTrue(overlay.isHidden)
+    }
+
+    func testLockUIIsPausePreviewSendDiscard() {
+        let overlay = VoiceLockOverlay()
+        overlay.showLocked()
+        XCTAssertEqual(overlay.pauseButton.accessibilityLabel, "Pause recording")
+        XCTAssertEqual(overlay.previewButton.accessibilityLabel, "Preview recording")
+        XCTAssertEqual(overlay.sendButton.accessibilityLabel, "Send voice message")
+        XCTAssertEqual(overlay.discardButton.accessibilityLabel, "Discard recording")
+        let actions = overlay.subviews.compactMap(\.accessibilityCustomActions).flatMap { $0 }
+        let names = actions.map(\.name)
+        XCTAssertTrue(names.contains("Pause recording"))
+        XCTAssertTrue(names.contains("Preview recording"))
+        XCTAssertTrue(names.contains("Send voice message"))
+        XCTAssertTrue(names.contains("Discard recording"))
+    }
+
+    func testWaveformTokenIsAccentAtSixtyPercent() {
+        let theme = ConversationTheme.default
+        XCTAssertEqual(theme.colors.waveformAccent.cgColor.alpha, 0.6, accuracy: 0.01)
+        XCTAssertEqual(theme.materials.composer, .systemChromeMaterial)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLinePointSize, 22)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLineWeight, .ultraLight)
+    }
+
+    func testPlaybackRateCyclesOneOneAndHalfTwo() {
+        XCTAssertEqual(VoicePlaybackRate.one.label, "1×")
+        XCTAssertEqual(VoicePlaybackRate.oneAndHalf.label, "1.5×")
+        XCTAssertEqual(VoicePlaybackRate.two.label, "2×")
+        XCTAssertEqual(VoicePlaybackRate.one.next(), .oneAndHalf)
+        XCTAssertEqual(VoicePlaybackRate.oneAndHalf.next(), .two)
+        XCTAssertEqual(VoicePlaybackRate.two.next(), .one)
+        XCTAssertEqual(VoicePlaybackRate.one.value, 1)
+        XCTAssertEqual(VoicePlaybackRate.oneAndHalf.value, 1.5)
+        XCTAssertEqual(VoicePlaybackRate.two.value, 2)
+    }
+
+    func testSendVoiceSignaturePassesDurationWaveformAndQuote() {
+        let quote = Message(
+            id: "q-1",
+            senderID: "ada",
+            sentAt: Date(),
+            kind: .text("Already in my pocket.", preview: nil),
+            isOutgoing: true
+        )
+        var captured: (URL, TimeInterval, [Float], Message?)?
+        let actions = ConversationActions(onSendVoice: { url, duration, waveform, quoted in
+            captured = (url, duration, waveform, quoted)
+            return nil
+        })
+        let url = URL(fileURLWithPath: "/tmp/voice.m4a")
+        _ = actions.onSendVoice?(url, 3.5, [0.2, 0.8], quote)
+        XCTAssertEqual(captured?.0, url)
+        XCTAssertEqual(captured?.1, 3.5)
+        XCTAssertEqual(captured?.2, [0.2, 0.8])
+        XCTAssertEqual(captured?.3?.id, "q-1")
+    }
+
+    func testChromeDismissStartsOnPlusPillCameraNotMicOrField() {
+        let mic = UIView()
+        let field = UITextView()
+        let plus = UIButton()
+        let camera = UIButton()
+        let pill = UIView()
+        XCTAssertTrue(ComposerChromeDismiss.allowsStart(hitView: plus, mic: mic, textView: field))
+        XCTAssertTrue(ComposerChromeDismiss.allowsStart(hitView: camera, mic: mic, textView: field))
+        XCTAssertTrue(ComposerChromeDismiss.allowsStart(hitView: pill, mic: mic, textView: field))
+        XCTAssertFalse(ComposerChromeDismiss.allowsStart(hitView: mic, mic: mic, textView: field))
+        XCTAssertFalse(ComposerChromeDismiss.allowsStart(hitView: field, mic: mic, textView: field))
+        XCTAssertTrue(ComposerChromeDismiss.isVertical(translation: CGPoint(x: 0, y: 20), velocity: CGPoint(x: 4, y: 80)))
+        XCTAssertFalse(ComposerChromeDismiss.isVertical(translation: CGPoint(x: 40, y: 2), velocity: CGPoint(x: 80, y: 4)))
     }
 }
 

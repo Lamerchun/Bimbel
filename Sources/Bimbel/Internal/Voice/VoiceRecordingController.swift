@@ -34,9 +34,11 @@ final class VoiceRecordingController {
 
     private(set) var state: State = .idle
     private var recorder: AVAudioRecorder?
+    private var previewPlayer: AVAudioPlayer?
     private var fileURL: URL?
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
+    private var samples: [Float] = []
     var onLevel: ((Float, TimeInterval) -> Void)?
     var onStateChange: ((State) -> Void)?
 
@@ -45,11 +47,17 @@ final class VoiceRecordingController {
         return accumulated + running
     }
 
+    var waveform: [Float] { samples }
+
+    var isPreviewing: Bool { previewPlayer?.isPlaying == true }
+
     func begin() {
+        stopPreview()
         stopRecorder(keepFile: false)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("bimbel-voice-\(UUID().uuidString).m4a")
         fileURL = url
         accumulated = 0
+        samples = []
         startedAt = Date()
         state = .recording
         onStateChange?(state)
@@ -82,6 +90,7 @@ final class VoiceRecordingController {
 
     func resume() {
         guard state == .paused else { return }
+        stopPreview()
         startedAt = Date()
         recorder?.record()
         state = .locked
@@ -89,24 +98,63 @@ final class VoiceRecordingController {
     }
 
     func cancel() {
+        stopPreview()
         stopRecorder(keepFile: false)
         if let fileURL {
             try? FileManager.default.removeItem(at: fileURL)
         }
         fileURL = nil
+        samples = []
+        accumulated = 0
         state = .idle
         onStateChange?(state)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
 
     /// Hands the temp file to the host. Package does not keep ownership after send.
-    func finish() -> URL? {
+    func finish() -> VoiceTake? {
+        let duration = currentDuration
+        let waves = samples
         let url = fileURL
+        stopPreview()
         stopRecorder(keepFile: true)
         fileURL = nil
+        samples = []
+        accumulated = 0
         state = .idle
         onStateChange?(state)
-        return url
+        guard let url else { return nil }
+        return VoiceTake(url: url, duration: max(duration, 0.2), waveform: waves)
+    }
+
+    @discardableResult
+    func togglePreview() -> Bool {
+        if previewPlayer?.isPlaying == true {
+            previewPlayer?.pause()
+            return false
+        }
+        if state == .locked || state == .recording {
+            pause()
+        }
+        guard let fileURL else { return false }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+            try session.setActive(true)
+            let player = try AVAudioPlayer(contentsOf: fileURL)
+            player.enableRate = true
+            player.rate = 1
+            player.play()
+            previewPlayer = player
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func stopPreview() {
+        previewPlayer?.stop()
+        previewPlayer = nil
     }
 
     private func startEngine(url: URL) {
@@ -135,10 +183,24 @@ final class VoiceRecordingController {
         guard state == .recording || state == .locked else { return }
         recorder?.updateMeters()
         let level = recorder?.averagePower(forChannel: 0) ?? Float.random(in: -40...(-8))
+        pushSample(level)
         onLevel?(level, currentDuration)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             MainActor.assumeIsolated { self?.tick() }
         }
+    }
+
+    private func pushSample(_ value: Float) {
+        let normalized: Float
+        if value > -1, value < 1.5 {
+            normalized = min(1, max(0.08, value))
+        } else {
+            normalized = min(1, max(0.08, (value + 50) / 50))
+        }
+        if samples.count >= 48 {
+            samples.removeFirst()
+        }
+        samples.append(normalized)
     }
 
     private func stopRecorder(keepFile: Bool) {
