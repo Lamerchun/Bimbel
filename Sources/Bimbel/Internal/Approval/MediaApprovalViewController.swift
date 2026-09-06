@@ -2,6 +2,21 @@ import AVFoundation
 import PhotosUI
 import UIKit
 
+/// SLICE-2-TOKENS §3. Numbers live on `ConversationTheme`; this is the lock.
+enum ConversationApprovalChrome {
+    static let thumb: CGFloat = 64
+    static let thumbRadius: CGFloat = 12
+    static let thumbGap: CGFloat = 8
+    static let toolIcon: CGFloat = 22
+    static let hit: CGFloat = 44
+    static let sendCircle: CGFloat = 40
+    static let captionHeight: CGFloat = 40
+    static let maxAttachments = 10
+    static let drawWidth: CGFloat = 4
+    static let textColor = UIColor.white
+    static let textScrim = UIColor.black.withAlphaComponent(0.28)
+}
+
 final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, UITextFieldDelegate {
     var onSend: ((EditSession) -> Void)?
     var onAddMore: ((MediaApprovalViewController) -> Void)?
@@ -15,9 +30,10 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
     private var trimHeight: NSLayoutConstraint!
     private let toolbar = UIStackView()
     private let captionField = UITextField()
-    private let captionFill = UIView()
+    let captionFill = ComposerCapsuleFill()
     private let sendButton = HitTargetButton(type: .system)
-    private let sendFill = ComposerAccentCircle()
+    let sendFill = ComposerAccentCircle()
+    private(set) var toolButtons: [HitTargetButton] = []
     private let rail = MediaApprovalRailView()
     private var isExporting = false
 
@@ -63,9 +79,6 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
         toolbar.alignment = .center
 
         captionFill.backgroundColor = theme.colors.composerFill
-        captionFill.layer.cornerRadius = theme.radii.composerPill
-        captionFill.layer.cornerCurve = .continuous
-        captionFill.layer.masksToBounds = true
         captionFill.layer.borderWidth = 0
         captionField.font = theme.fonts.body
         captionField.textColor = theme.colors.incomingPrimaryText
@@ -77,6 +90,7 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
         captionField.backgroundColor = .clear
 
         sendFill.backgroundColor = theme.colors.sendFill
+        sendButton.backgroundColor = .clear
         sendButton.setImage(UIImage.bimbelComposerLine("paperplane.fill"), for: .normal)
         sendButton.tintColor = theme.colors.sendIcon
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
@@ -118,7 +132,7 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
             captionFill.leadingAnchor.constraint(equalTo: captionHost.leadingAnchor),
             captionFill.trailingAnchor.constraint(equalTo: captionHost.trailingAnchor),
             captionFill.bottomAnchor.constraint(equalTo: captionHost.bottomAnchor),
-            captionFill.heightAnchor.constraint(equalToConstant: 40),
+            captionFill.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.captionHeight),
             captionField.leadingAnchor.constraint(equalTo: captionFill.leadingAnchor, constant: 14),
             captionField.trailingAnchor.constraint(equalTo: captionFill.trailingAnchor, constant: -14),
             captionField.centerYAnchor.constraint(equalTo: captionFill.centerYAnchor)
@@ -132,14 +146,14 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
         NSLayoutConstraint.activate([
             sendFill.centerXAnchor.constraint(equalTo: sendHost.centerXAnchor),
             sendFill.centerYAnchor.constraint(equalTo: sendHost.centerYAnchor),
-            sendFill.widthAnchor.constraint(equalToConstant: 40),
-            sendFill.heightAnchor.constraint(equalToConstant: 40),
-            sendHost.widthAnchor.constraint(equalToConstant: 44),
-            sendHost.heightAnchor.constraint(equalToConstant: 44),
+            sendFill.widthAnchor.constraint(equalToConstant: ConversationApprovalChrome.sendCircle),
+            sendFill.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.sendCircle),
+            sendHost.widthAnchor.constraint(equalToConstant: ConversationApprovalChrome.hit),
+            sendHost.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.hit),
             sendButton.centerXAnchor.constraint(equalTo: sendFill.centerXAnchor),
             sendButton.centerYAnchor.constraint(equalTo: sendFill.centerYAnchor),
-            sendButton.widthAnchor.constraint(equalToConstant: 44),
-            sendButton.heightAnchor.constraint(equalToConstant: 44)
+            sendButton.widthAnchor.constraint(equalToConstant: ConversationApprovalChrome.hit),
+            sendButton.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.hit)
         ])
 
         let captionRow = UIStackView(arrangedSubviews: [captionHost, sendHost])
@@ -165,7 +179,7 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
             trimSlider.bottomAnchor.constraint(equalTo: toolbar.topAnchor, constant: -8),
             toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            toolbar.heightAnchor.constraint(equalToConstant: theme.layout.hitTarget),
+            toolbar.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.hit),
             toolbar.bottomAnchor.constraint(equalTo: captionRow.topAnchor, constant: -10),
             captionRow.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             captionRow.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
@@ -241,21 +255,36 @@ final class MediaApprovalViewController: UIViewController, MediaEditorDelegate, 
 
     private func makeTool(title: String, symbol: String, action: Selector) {
         let button = HitTargetButton(type: .system)
-        button.minimumHitSize = CGSize(width: theme.layout.hitTarget, height: theme.layout.hitTarget)
-        var config = UIButton.Configuration.plain()
-        config.image = UIImage.bimbelComposerLine(symbol)
-        config.preferredSymbolConfigurationForImage = .bimbelComposerLine
-        config.title = title
-        config.imagePlacement = .top
-        config.imagePadding = 4
-        config.baseForegroundColor = theme.colors.headerTitle
-        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var outgoing = incoming
-            outgoing.font = .systemFont(ofSize: 12, weight: .medium)
-            return outgoing
-        }
-        button.configuration = config
+        button.minimumHitSize = CGSize(width: ConversationApprovalChrome.hit, height: ConversationApprovalChrome.hit)
+        button.backgroundColor = .clear
+        button.tintColor = theme.colors.headerTitle
+        button.accessibilityLabel = title
         button.addTarget(self, action: action, for: .touchUpInside)
+
+        let icon = UIImageView(image: UIImage.bimbelComposerLine(symbol))
+        icon.tintColor = theme.colors.headerTitle
+        icon.contentMode = .scaleAspectFit
+        let label = UILabel()
+        label.text = title
+        label.font = .systemFont(ofSize: 12, weight: .medium)
+        label.textColor = theme.colors.headerTitle
+        label.textAlignment = .center
+        let stack = UIStackView(arrangedSubviews: [icon, label])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 2
+        stack.isUserInteractionEnabled = false
+        button.addSubview(stack)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: ConversationApprovalChrome.toolIcon),
+            icon.heightAnchor.constraint(equalToConstant: ConversationApprovalChrome.toolIcon),
+            stack.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            button.heightAnchor.constraint(greaterThanOrEqualToConstant: ConversationApprovalChrome.hit)
+        ])
+        toolButtons.append(button)
         toolbar.addArrangedSubview(button)
     }
 
@@ -314,8 +343,8 @@ final class MediaApprovalRailView: UIView, UICollectionViewDataSource, UICollect
     override init(frame: CGRect) {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .horizontal
-        layout.minimumInteritemSpacing = 8
-        layout.minimumLineSpacing = 8
+        layout.minimumInteritemSpacing = ConversationApprovalChrome.thumbGap
+        layout.minimumLineSpacing = ConversationApprovalChrome.thumbGap
         collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
         super.init(frame: frame)
         collection.backgroundColor = .clear

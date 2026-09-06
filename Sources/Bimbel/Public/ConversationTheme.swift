@@ -316,7 +316,7 @@ public struct ConversationTheme: Sendable {
         public var composerControl: CGFloat
         public var chip: CGFloat
         public var sheet: CGFloat
-        /// Approval rail thumbs. Ship 4.
+        /// Approval rail thumbs. Ship 4 / SLICE-2-TOKENS §3.
         public var approvalThumb: CGFloat
 
         public init(
@@ -386,15 +386,15 @@ public struct ConversationTheme: Sendable {
         public var inboxUnreadDot: CGFloat
         /// Hairline under the text column, not under the avatar.
         public var inboxSeparatorInset: CGFloat
-        /// Hard cap for one Approval send. Over-limit shows a toast — never silent truncate.
+        /// Hard cap for one Approval send. Over-limit shows a toast — never silent truncate. §3: 10.
         public var maxAttachmentsPerSend: Int
-        /// Approval rail thumb size.
+        /// Approval rail thumb size. §3: 64.
         public var approvalThumb: CGFloat
-        /// Gap between approval rail thumbs.
+        /// Gap between approval rail thumbs. §3: 8.
         public var approvalThumbGap: CGFloat
         /// Header / approval close glyph. Same 22 ultraLight family as the composer.
         public var headerIcon: CGFloat
-        /// Draw-editor stroke width.
+        /// Draw-editor stroke width. §3: ~4, one color = accent.
         public var drawStrokeWidth: CGFloat
         /// Tight spacing inside a time cluster. Same value as `clusterGap`. Not `grouping.maxGap`.
         public var groupingInnerSpacing: CGFloat {

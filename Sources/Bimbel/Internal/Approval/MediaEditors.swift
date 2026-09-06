@@ -150,7 +150,7 @@ final class MediaDrawEditorViewController: UIViewController {
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = true
         canvas.strokeColor = theme.colors.accent
-        canvas.strokeWidth = theme.layout.drawStrokeWidth
+        canvas.strokeWidth = ConversationApprovalChrome.drawWidth
         canvas.translatesAutoresizingMaskIntoConstraints = false
         imageView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(imageView)
@@ -230,10 +230,10 @@ final class MediaTextEditorViewController: UIViewController, UITextFieldDelegate
         ])
 
         field.font = theme.fonts.bubbleBody
-        field.textColor = UIColor(white: 0.12, alpha: 1)
-        field.backgroundColor = UIColor.white.withAlphaComponent(0.92)
-        field.layer.cornerRadius = 10
-        field.layer.masksToBounds = true
+        field.textColor = ConversationApprovalChrome.textColor
+        field.backgroundColor = .clear
+        field.layer.cornerRadius = 0
+        field.layer.masksToBounds = false
         field.textAlignment = .center
         field.delegate = self
         field.attributedPlaceholder = NSAttributedString(
@@ -254,8 +254,8 @@ final class MediaTextEditorViewController: UIViewController, UITextFieldDelegate
             field.heightAnchor.constraint(greaterThanOrEqualToConstant: 36)
         ])
         let scrim = UIView()
-        scrim.backgroundColor = UIColor.black.withAlphaComponent(0.18)
-        scrim.layer.cornerRadius = 12
+        scrim.backgroundColor = ConversationApprovalChrome.textScrim
+        scrim.layer.cornerRadius = 8
         scrim.isUserInteractionEnabled = false
         imageView.insertSubview(scrim, belowSubview: field)
         scrim.translatesAutoresizingMaskIntoConstraints = false
@@ -330,7 +330,7 @@ final class DrawCanvas: UIView {
                         y: (point.y - fitted.minY) / max(fitted.height, 1)
                     )
                 },
-                width: strokeWidth
+                width: ConversationApprovalChrome.drawWidth
             )
         }
     }

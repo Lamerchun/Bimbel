@@ -51,7 +51,7 @@ enum MediaRender {
             cg.setLineCap(.round)
             cg.setLineJoin(.round)
             for stroke in strokes where stroke.points.count > 1 {
-                cg.setLineWidth(stroke.width)
+                cg.setLineWidth(theme.layout.drawStrokeWidth)
                 cg.beginPath()
                 let first = denormalize(stroke.points[0], in: image.size)
                 cg.move(to: first)
@@ -65,10 +65,10 @@ enum MediaRender {
                 let font = theme.fonts.bubbleBody
                 let attributes: [NSAttributedString.Key: Any] = [
                     .font: font,
-                    .foregroundColor: UIColor.white
+                    .foregroundColor: ConversationApprovalChrome.textColor
                 ]
                 let size = text.size(withAttributes: attributes)
-                let pad = CGSize(width: 14, height: 8)
+                let pad = CGSize(width: 12, height: 6)
                 let box = CGSize(width: size.width + pad.width * 2, height: size.height + pad.height * 2)
                 let center = denormalize(overlay.normalizedCenter, in: image.size)
                 let frame = CGRect(
@@ -77,17 +77,11 @@ enum MediaRender {
                     width: box.width,
                     height: box.height
                 )
-                let path = UIBezierPath(roundedRect: frame, cornerRadius: 10)
-                UIColor.black.withAlphaComponent(0.28).setFill()
-                path.fill()
-                UIColor.white.withAlphaComponent(0.92).setFill()
-                UIBezierPath(roundedRect: frame.insetBy(dx: 1.5, dy: 1.5), cornerRadius: 8).fill()
+                ConversationApprovalChrome.textScrim.setFill()
+                UIBezierPath(roundedRect: frame, cornerRadius: 8).fill()
                 text.draw(
                     in: CGRect(x: frame.minX + pad.width, y: frame.minY + pad.height, width: size.width, height: size.height),
-                    withAttributes: [
-                        .font: font,
-                        .foregroundColor: UIColor(white: 0.12, alpha: 1)
-                    ]
+                    withAttributes: attributes
                 )
             }
         }

@@ -2,16 +2,62 @@ import XCTest
 @testable import Bimbel
 
 final class EditSessionTests: XCTestCase {
-    func testShip4ApprovalTokens() {
+    func testShip4Section3Tokens() {
         let layout = ConversationTheme.default.layout
-        XCTAssertEqual(layout.maxAttachmentsPerSend, 10)
+        XCTAssertEqual(layout.approvalThumb, ConversationApprovalChrome.thumb)
         XCTAssertEqual(layout.approvalThumb, 64)
+        XCTAssertEqual(layout.approvalThumbGap, ConversationApprovalChrome.thumbGap)
         XCTAssertEqual(layout.approvalThumbGap, 8)
-        XCTAssertEqual(layout.headerIcon, 22)
-        XCTAssertEqual(layout.drawStrokeWidth, 4)
+        XCTAssertEqual(ConversationTheme.default.radii.approvalThumb, ConversationApprovalChrome.thumbRadius)
         XCTAssertEqual(ConversationTheme.default.radii.approvalThumb, 12)
-        XCTAssertEqual(ConversationTheme.default.radii.composerPill, 24)
+        XCTAssertEqual(layout.maxAttachmentsPerSend, ConversationApprovalChrome.maxAttachments)
+        XCTAssertEqual(layout.maxAttachmentsPerSend, 10)
+        XCTAssertEqual(layout.drawStrokeWidth, ConversationApprovalChrome.drawWidth)
+        XCTAssertEqual(layout.drawStrokeWidth, 4)
+        XCTAssertEqual(layout.hitTarget, ConversationApprovalChrome.hit)
+        XCTAssertEqual(layout.headerIcon, ConversationApprovalChrome.toolIcon)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLinePointSize, 22)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLineWeight, .ultraLight)
         XCTAssertEqual(ConversationTheme.default.fonts.bubbleBody.pointSize, 16)
+        XCTAssertEqual(ConversationApprovalChrome.textColor, UIColor.white)
+    }
+
+    func testApprovalCaptionIsComposerCapsuleAndSendIsAccentCircle() {
+        var session = EditSession()
+        _ = session.admit([.photo(data: Data([UInt8(1)]))], limit: 10)
+        let vc = MediaApprovalViewController(session: session, theme: .default)
+        let host = UIView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        host.addSubview(vc.view)
+        vc.view.frame = host.bounds
+        vc.view.layoutIfNeeded()
+
+        XCTAssertEqual(vc.captionFill.layer.borderWidth, 0)
+        XCTAssertEqual(vc.captionFill.backgroundColor, ConversationTheme.default.colors.composerFill)
+        if vc.captionFill.bounds.height <= 1 {
+            vc.captionFill.bounds = CGRect(x: 0, y: 0, width: 240, height: ConversationApprovalChrome.captionHeight)
+        }
+        vc.captionFill.applyCapsule()
+        XCTAssertEqual(vc.captionFill.layer.cornerRadius, vc.captionFill.bounds.height / 2, accuracy: 0.5)
+        if vc.sendFill.bounds.width <= 1 {
+            vc.sendFill.bounds = CGRect(
+                x: 0,
+                y: 0,
+                width: ConversationApprovalChrome.sendCircle,
+                height: ConversationApprovalChrome.sendCircle
+            )
+            vc.sendFill.layoutIfNeeded()
+        }
+        XCTAssertEqual(vc.sendFill.bounds.width, ConversationApprovalChrome.sendCircle, accuracy: 0.5)
+        XCTAssertEqual(vc.sendFill.bounds.height, ConversationApprovalChrome.sendCircle, accuracy: 0.5)
+        XCTAssertEqual(vc.sendFill.layer.cornerRadius, ConversationApprovalChrome.sendCircle / 2, accuracy: 0.5)
+        XCTAssertEqual(vc.sendFill.backgroundColor, ConversationTheme.default.colors.sendFill)
+        XCTAssertEqual(vc.toolButtons.count, 3)
+        for button in vc.toolButtons {
+            XCTAssertEqual(button.backgroundColor?.cgColor.alpha ?? 0, 0, accuracy: 0.01)
+            XCTAssertGreaterThanOrEqual(button.minimumHitSize.width, 44)
+            XCTAssertGreaterThanOrEqual(button.minimumHitSize.height, 44)
+            XCTAssertNil(button.configuration)
+        }
     }
 
     func testAdmitStopsAtLimitAndReportsRejected() {
