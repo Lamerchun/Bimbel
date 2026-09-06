@@ -18,7 +18,7 @@ Fokus jetzt: Unterhaltungsliste und Unterhaltung mit Bubbles, plus Kamera und Me
 | Texte nach außen | Laura | Package-Copy, Captions, einheitlicher Ton |
 | Marketing | Miriam | Repo, Status, Screenshots, Mitmachen |
 
-Nächster sichtbarer Schritt: Simulator-Screenshots (Inbox + Conversation, Theme Bimbel und Accent Blue).
+Nächster sichtbarer Schritt: Kamera und Medien-Optionen im Thread.
 
 Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread.
 
@@ -87,9 +87,15 @@ Logo-Sponsoren, sobald es welche gibt.
 
 ## Screenshots
 
-Noch keine. Mocks und Simulator-Aufnahmen: `docs/screenshots/`
+<p align="center">
+  <img src="docs/screenshots/inbox-theme-bimbel.png" alt="Inbox, Theme Bimbel" width="280" />
+  <img src="docs/screenshots/conversation-theme-bimbel.png" alt="Conversation, Theme Bimbel" width="280" />
+  <img src="docs/screenshots/conversation-accent-blue.png" alt="Conversation, Accent Blue" width="280" />
+</p>
 
-Captions nur Bimbel / Blue, kein Look-Jargon, keine fremden Marken.
+Inbox, Theme Bimbel · Conversation, Theme Bimbel · Conversation, Accent Blue
+
+Source files: `docs/screenshots/`
 
 ## Mitmachen
 
