@@ -1,3 +1,7 @@
 # Screenshots
 
-App and mock screenshots go here. Name files clearly, e.g. `chat-thread-light.png`.
+- `inbox-theme-bimbel.png` — Inbox, Theme Bimbel
+- `conversation-theme-bimbel.png` — Conversation, Theme Bimbel
+- `conversation-accent-blue.png` — Conversation, Accent Blue
+
+Captions: Bimbel / Blue only. No Look-Jargon, no other brand names.
