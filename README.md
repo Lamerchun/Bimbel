@@ -8,7 +8,7 @@ Bimbel is a native iOS chat component for the conversation list and the conversa
 
 Projektstart: 27. August 2026. Surface 1 (Conversation) und Surface 2 (Inbox / Unterhaltungsübersicht) liegen als Swift Package + Sample-App im Repo.
 
-Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), Keyboard inkl. Drag-to-dismiss, Voice-Lock. Inbox-Liste mit denselben Tokens.
+Fokus jetzt: Unterhaltungsliste und Unterhaltung mit Bubbles, plus Kamera und Medien-Optionen im Thread. Optisch nah am bekannten Messenger-Look, ohne fremde Marken in der öffentlichen Copy.
 
 | Bereich | Wer | Stand |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Erster Schnitt: Conversation-View (Zustand B: Liquid Glass, floating Composer), 
 | Texte nach außen | Laura | Package-Copy, Captions, einheitlicher Ton |
 | Marketing | Miriam | Repo, Status, Screenshots, Mitmachen |
 
-Nächster sichtbarer Schritt: Simulator-Screenshots.
+Nächster sichtbarer Schritt: Simulator-Screenshots (Inbox + Conversation, Theme Bimbel und Accent Blue).
 
 Open `Bimbel.xcworkspace` (or `Sample/BimbelSample.xcodeproj`) on macOS. iOS 17+, Xcode 16.4+ (Swift 6.1 for ChatLayout). The sample launches on the inbox; tap a row for the thread.
 
@@ -89,15 +89,16 @@ Logo-Sponsoren, sobald es welche gibt.
 
 Noch keine. Mocks und Simulator-Aufnahmen: `docs/screenshots/`
 
-Captions nur zur Komponente, Name Bimbel, keine fremden Marken.
+Captions nur Bimbel / Blue, kein Look-Jargon, keine fremden Marken.
 
 ## Mitmachen
 
-Issues und PRs willkommen, solange sie an der Komponente bleiben (Liste + Conversation, nicht Status/Calls/Settings).
+Issues und PRs willkommen, solange sie an Liste und Conversation bleiben (Bubbles, Kamera, Medien bearbeiten — nicht Status/Calls/Settings).
 
+- Inbox und Conversation-Bubbles
+- Kamera und Medien-Optionen im Thread
 - Composer und Keyboard (Drag-to-dismiss)
-- Bubbles, Reply, Reaktionen
-- Accessibility, Dark Mode, Liquid Glass
+- Accessibility, Dark Mode
 - Agent-freundliche API und Docs
 
 Siehe [CONTRIBUTING.md](CONTRIBUTING.md).
