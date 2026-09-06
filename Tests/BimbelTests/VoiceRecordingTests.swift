@@ -48,6 +48,8 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertEqual(overlay.cancelHintTextColor, ConversationTheme.default.colors.headerSubtitle)
         overlay.applyHoldProgress(CGPoint(x: -72, y: 0), cancelAt: 72, lockAt: 56)
         XCTAssertEqual(overlay.cancelHintTextColor, .systemRed)
+        overlay.apply(theme: .default)
+        XCTAssertEqual(overlay.cancelHintTextColor, .systemRed)
     }
 
     func testReleaseUnderThresholdSendsAndPastThresholdCancels() {

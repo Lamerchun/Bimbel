@@ -28,6 +28,9 @@ final class VoiceLockOverlay: UIView {
     var cancelHintTextColor: UIColor { cancelHint.textColor }
     private var theme = ConversationTheme.default
     private var locked = false
+    /// 0...1 of the 72pt cancel slide. Survives `apply(theme:)` so the hint
+    /// stays systemRed after the threshold instead of snapping back to secondary.
+    private var cancelProgress: CGFloat = 0
     private var holdHeight: NSLayoutConstraint!
     private var holdLeading: NSLayoutConstraint!
     private var holdTrailing: NSLayoutConstraint!
@@ -199,7 +202,7 @@ final class VoiceLockOverlay: UIView {
         timeLabel.textColor = theme.colors.headerSubtitle
         lockedTimeLabel.textColor = theme.colors.headerSubtitle
         cancelHint.font = theme.fonts.recordingHint
-        cancelHint.textColor = theme.colors.headerSubtitle
+        applyCancelHintColor()
         lockWell.tintColor = theme.colors.accent
         lockWell.backgroundColor = theme.colors.composerFill
         lockWell.layer.cornerRadius = theme.radii.lockCapsule
@@ -224,10 +227,11 @@ final class VoiceLockOverlay: UIView {
         lockedBar.isHidden = true
         lockWell.isHidden = false
         lockWell.alpha = 1
+        cancelProgress = 0
         cancelHint.alpha = 1
         cancelHint.transform = .identity
         cancelHint.text = String(localized: "Slide to cancel")
-        cancelHint.textColor = theme.colors.headerSubtitle
+        applyCancelHintColor()
         lockWell.tintColor = theme.colors.accent
         lockWell.setImage(UIImage.bimbelComposerLine("lock"), for: .normal)
         accessibilityViewIsModal = false
@@ -251,8 +255,10 @@ final class VoiceLockOverlay: UIView {
     func hide() {
         isHidden = true
         locked = false
+        cancelProgress = 0
         waveform.reset()
         cancelHint.transform = .identity
+        applyCancelHintColor()
         lockWell.transform = .identity
         lockedBar.isAccessibilityElement = false
     }
@@ -261,14 +267,19 @@ final class VoiceLockOverlay: UIView {
         guard !locked else { return }
         let cancel = min(1, max(0, -translation.x / max(cancelAt, 1)))
         let lock = min(1, max(0, -translation.y / max(lockAt, 1)))
+        cancelProgress = cancel
         cancelHint.alpha = 1 - cancel * 0.15
         cancelHint.transform = CGAffineTransform(translationX: min(0, translation.x * 0.35), y: 0)
         // caption1 secondary → systemRed only after the cancel threshold.
-        cancelHint.textColor = cancel >= 1 ? .systemRed : theme.colors.headerSubtitle
+        applyCancelHintColor()
         lockWell.transform = CGAffineTransform(translationX: 0, y: max(-24, translation.y * 0.2))
             .scaledBy(x: 1 + lock * 0.12, y: 1 + lock * 0.12)
         lockWell.tintColor = theme.colors.accent
         lockWell.setImage(UIImage.bimbelComposerLine(lock >= 1 ? "lock.fill" : "lock"), for: .normal)
+    }
+
+    private func applyCancelHintColor() {
+        cancelHint.textColor = cancelProgress >= 1 ? .systemRed : theme.colors.headerSubtitle
     }
 
     func pushLevel(_ level: Float, duration: TimeInterval) {

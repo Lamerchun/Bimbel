@@ -236,8 +236,12 @@ final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
         let active = recorder
         recorder = nil
         active?.stop()
-        if deleteFile, let fileURL {
-            try? FileManager.default.removeItem(at: fileURL)
+        if deleteFile, let url = fileURL {
+            // `stop()` is still flushing. Deleting on this turn races mediaserverd
+            // the same way `setActive(false)` did on send.
+            DispatchQueue.main.async {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
     }
 

@@ -172,7 +172,11 @@ final class VoiceMessageView: UIView, AVAudioPlayerDelegate {
         stop(resetClock: true)
     }
 
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    /// Audio session callbacks are not MainActor. Hop before touching views —
+    /// a MainActor trap here is a process death (SpringBoard).
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        _ = player
+        _ = flag
         DispatchQueue.main.async { [weak self] in
             self?.stop(resetClock: true)
         }
