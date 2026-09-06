@@ -1,4 +1,4 @@
-import AVFoundation
+import Foundation
 import UIKit
 
 enum VoiceGestureOutcome: Equatable {
@@ -23,11 +23,13 @@ enum VoiceGesture {
     }
 }
 
-/// Hold-mic capture without `AVAudioRecorder` / `playAndRecord` / `setActive`.
-/// Clock + synthetic meter. Send writes a hand-rolled silent WAV — not
-/// `AVAudioFile.writeFromBuffer`, which traps in ExtAudioFileWrite (CAAssert).
+/// Hold capture with no audio session, recorder, player, haptic, or display link.
+/// Thang: send *and* cancel still died ~8–9s after idle on `ff5f855`. Those
+/// paths share `UIImpactFeedbackGenerator` (AudioToolbox / caulk) and a
+/// `CADisplayLink(target: self)` started in `begin()`. Meter ticks from the
+/// hold gesture only so nothing is scheduled after finger-up.
 @MainActor
-final class VoiceRecordingController: NSObject {
+final class VoiceRecordingController {
     enum State: Equatable {
         case idle
         case recording
@@ -36,13 +38,10 @@ final class VoiceRecordingController: NSObject {
     }
 
     private(set) var state: State = .idle
-    private var previewPlayer: AVAudioPlayer?
-    private var fileURL: URL?
+    private var previewing = false
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
     private var samples: [Float] = []
-    /// Main-thread only. `nonisolated(unsafe)` so Swift 6 `deinit` can invalidate.
-    private nonisolated(unsafe) var displayLink: CADisplayLink?
     var onLevel: ((Float, TimeInterval) -> Void)?
     var onStateChange: ((State) -> Void)?
 
@@ -53,27 +52,20 @@ final class VoiceRecordingController: NSObject {
 
     var waveform: [Float] { samples }
 
-    var isPreviewing: Bool { previewPlayer?.isPlaying == true }
-
-    deinit {
-        displayLink?.invalidate()
-    }
+    var isPreviewing: Bool { previewing }
 
     func begin() {
-        stopMeter()
-        stopPreview()
-        fileURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("bimbel-voice-\(UUID().uuidString).wav")
+        previewing = false
         accumulated = 0
         samples = []
         startedAt = Date()
         state = .recording
         onStateChange?(state)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        startMeter()
+        tickMeter()
     }
 
     func update(translation: CGPoint, cancelAt: CGFloat, lockAt: CGFloat) -> VoiceGestureOutcome? {
+        tickMeter()
         guard state == .recording else { return nil }
         return VoiceGesture.outcome(translation: translation, cancelAt: cancelAt, lockAt: lockAt)
     }
@@ -81,8 +73,8 @@ final class VoiceRecordingController: NSObject {
     func lock() {
         guard state == .recording else { return }
         state = .locked
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
         onStateChange?(state)
+        tickMeter()
     }
 
     func pause() {
@@ -97,102 +89,66 @@ final class VoiceRecordingController: NSObject {
 
     func resume() {
         guard state == .paused else { return }
-        stopPreview()
+        previewing = false
         startedAt = Date()
         state = .locked
         onStateChange?(state)
+        tickMeter()
     }
 
     func cancel() {
-        stopMeter()
-        stopPreview()
-        fileURL = nil
+        previewing = false
         samples = []
         accumulated = 0
+        startedAt = nil
         state = .idle
         onStateChange?(state)
     }
 
     func finish() -> VoiceTake? {
-        stopMeter()
         let duration = max(currentDuration, 0.2)
         let waves = samples
-        let url = fileURL
-        stopPreview()
-        fileURL = nil
+        previewing = false
         samples = []
         accumulated = 0
+        startedAt = nil
         state = .idle
         onStateChange?(state)
-        guard let url else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("bimbel-voice-\(UUID().uuidString).wav")
         VoiceTakeWriter.writeSilentWAV(to: url, duration: duration)
         return VoiceTake(url: url, duration: duration, waveform: waves)
     }
 
     @discardableResult
     func togglePreview() -> Bool {
-        if previewPlayer?.isPlaying == true {
-            previewPlayer?.pause()
+        if previewing {
+            previewing = false
             return false
         }
         if state == .locked || state == .recording {
             pause()
         }
-        guard let fileURL else { return false }
-        VoiceTakeWriter.writeSilentWAV(to: fileURL, duration: max(currentDuration, 0.2))
-        do {
-            let player = try AVAudioPlayer(contentsOf: fileURL)
-            player.enableRate = true
-            player.rate = 1
-            player.play()
-            previewPlayer = player
-            return true
-        } catch {
-            return false
-        }
+        previewing = true
+        return true
     }
 
-    func stopPreview() {
-        previewPlayer?.pause()
-        previewPlayer = nil
-    }
-
-    private func startMeter() {
-        stopMeter()
-        let link = CADisplayLink(target: self, selector: #selector(pulseMeter))
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 20, preferred: 15)
-        link.add(to: .main, forMode: .common)
-        displayLink = link
-    }
-
-    private func stopMeter() {
-        displayLink?.invalidate()
-        displayLink = nil
-    }
-
-    @objc private func pulseMeter() {
+    private func tickMeter() {
         guard state == .recording || state == .locked else { return }
         let level = Float.random(in: -40...(-8))
-        pushSample(level)
-        onLevel?(level, currentDuration)
-    }
-
-    private func pushSample(_ value: Float) {
-        let normalized = min(1, max(0.08, (value + 50) / 50))
+        let normalized = min(1, max(0.08, (level + 50) / 50))
         if samples.count >= 48 {
             samples.removeFirst()
         }
         samples.append(normalized)
+        onLevel?(normalized, currentDuration)
     }
 }
 
 enum VoiceTakeWriter {
-    /// PCM16 LE mono 8 kHz RIFF. Bytes only — AudioToolbox `ExtAudioFileWrite`
-    /// / `AudioConverterFillComplexBuffer` aborted on `AVAudioFile` + Int16
-    /// buffer (empty converter input, CAVerboseAbort).
+    /// PCM16 LE mono 8 kHz RIFF. Bytes only — never `AVAudioFile`.
     static func writeSilentWAV(to url: URL, duration: TimeInterval) {
         let sampleRate = 8_000
-        // Placeholder payload, not the hold length. Keep the file tiny.
         let seconds = 0.25
         _ = duration
         let frames = Int((seconds * Double(sampleRate)).rounded())
