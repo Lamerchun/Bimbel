@@ -15,14 +15,16 @@ struct MessageDecoration: Hashable, Sendable {
     var mediaStack: MediaStackPosition
     var showsIncomingAvatar: Bool
     var reservesIncomingAvatarGutter: Bool
-    var incomingName: String?
+    var showsIncomingName: Bool
+    var showsFooter: Bool
 
     static let standalone = MessageDecoration(
         cluster: .standalone,
         mediaStack: .none,
         showsIncomingAvatar: false,
         reservesIncomingAvatarGutter: false,
-        incomingName: nil
+        showsIncomingName: false,
+        showsFooter: true
     )
 }
 
@@ -63,6 +65,7 @@ enum MediaStackPosition: Hashable, Sendable {
 enum MessageGrouping {
     static func rows(
         from snapshot: ConversationSnapshot,
+        maxGap: TimeInterval = ConversationTheme.Grouping.bimbel.maxGap,
         calendar: Calendar = .current
     ) -> [ChatRow] {
         let messages = expandCaptions(snapshot.messages.filter { !$0.id.isEmpty })
@@ -80,10 +83,14 @@ enum MessageGrouping {
                 continue
             }
 
-            let previous = index > 0 ? messages[index - 1] : nil
-            let next = index + 1 < messages.count ? messages[index + 1] : nil
-            let previousSame = previous.map { isSameCluster(message, $0, calendar: calendar) } ?? false
-            let nextSame = next.map { isSameCluster(message, $0, calendar: calendar) } ?? false
+            let previous = previousMessage(before: index, in: messages)
+            let next = nextMessage(after: index, in: messages)
+            let previousSame = previous.map {
+                isSameCluster(message, $0, maxGap: maxGap, calendar: calendar)
+            } ?? false
+            let nextSame = next.map {
+                isSameCluster(message, $0, maxGap: maxGap, calendar: calendar)
+            } ?? false
 
             let cluster: ClusterPosition
             switch (previousSame, nextSame) {
@@ -96,16 +103,23 @@ enum MessageGrouping {
             let stack = mediaStackPosition(
                 at: index,
                 messages: messages,
+                maxGap: maxGap,
                 calendar: calendar
             )
 
-            let showsIncomingAvatar = isGroup && !message.isOutgoing && cluster.isFirstInCluster
+            let authorChanged: Bool
+            if let previous, !isSystem(previous) {
+                authorChanged = previous.senderID != message.senderID
+            } else {
+                authorChanged = true
+            }
             decorated[index].1 = MessageDecoration(
                 cluster: cluster,
                 mediaStack: stack,
-                showsIncomingAvatar: showsIncomingAvatar,
+                showsIncomingAvatar: isGroup && !message.isOutgoing && cluster.isLastInCluster,
                 reservesIncomingAvatarGutter: isGroup && !message.isOutgoing,
-                incomingName: nil
+                showsIncomingName: isGroup && !message.isOutgoing && authorChanged,
+                showsFooter: showsFooter(current: message, next: next, calendar: calendar)
             )
         }
 
@@ -130,10 +144,44 @@ enum MessageGrouping {
         return false
     }
 
-    static func isSameCluster(_ a: Message, _ b: Message, calendar: Calendar) -> Bool {
+    /// Same direction; groups also same author (always compared). Window is `maxGap`,
+    /// not media-stack / album spacing.
+    static func isSameCluster(
+        _ a: Message,
+        _ b: Message,
+        maxGap: TimeInterval = ConversationTheme.Grouping.bimbel.maxGap,
+        calendar: Calendar = .current
+    ) -> Bool {
         guard !isSystem(a), !isSystem(b) else { return false }
-        guard a.senderID == b.senderID, a.isOutgoing == b.isOutgoing else { return false }
-        return calendar.isDate(a.sentAt, inSameDayAs: b.sentAt)
+        guard a.isOutgoing == b.isOutgoing else { return false }
+        guard a.senderID == b.senderID else { return false }
+        guard calendar.isDate(a.sentAt, inSameDayAs: b.sentAt) else { return false }
+        return abs(a.sentAt.timeIntervalSince(b.sentAt)) <= maxGap
+    }
+
+    /// Hide the timestamp when the next message cell shares the short clock
+    /// and outgoing status. Sending / failed / edited always keep a footer.
+    static func showsFooter(
+        current: Message,
+        next: Message?,
+        calendar: Calendar = .current
+    ) -> Bool {
+        if current.delivery == .sending || current.delivery == .failed { return true }
+        if current.editedAt != nil { return true }
+        guard let next, !isSystem(next) else { return true }
+        guard calendar.isDate(current.sentAt, inSameDayAs: next.sentAt) else { return true }
+        guard shortTime(current.sentAt) == shortTime(next.sentAt) else { return true }
+        return !sameOutgoingStatus(current, next)
+    }
+
+    static func shortTime(_ date: Date) -> String {
+        BimbelFormatters.messageTime.string(from: date)
+    }
+
+    static func sameOutgoingStatus(_ a: Message, _ b: Message) -> Bool {
+        guard a.isOutgoing == b.isOutgoing else { return false }
+        if a.isOutgoing { return a.delivery == b.delivery }
+        return true
     }
 
     static func isMediaLike(_ message: Message) -> Bool {
@@ -148,11 +196,12 @@ enum MessageGrouping {
     }
 
     /// Consecutive media/link (and trailing text after media) form one silhouette.
-    /// Consecutive plain text does **not** flatten like iMessage — full rounding stays.
+    /// Consecutive plain text does **not** flatten. Uses the cluster window, not album gap.
     static func mediaStackPosition(
         at index: Int,
         messages: [Message],
-        calendar: Calendar
+        maxGap: TimeInterval = ConversationTheme.Grouping.bimbel.maxGap,
+        calendar: Calendar = .current
     ) -> MediaStackPosition {
         let message = messages[index]
         guard !isSystem(message) else { return .none }
@@ -160,10 +209,10 @@ enum MessageGrouping {
         let previous = index > 0 ? messages[index - 1] : nil
         let next = index + 1 < messages.count ? messages[index + 1] : nil
         let previousJoin = previous.map {
-            isSameCluster(message, $0, calendar: calendar) && shouldJoinMediaStack(message, $0)
+            isSameCluster(message, $0, maxGap: maxGap, calendar: calendar) && shouldJoinMediaStack(message, $0)
         } ?? false
         let nextJoin = next.map {
-            isSameCluster(message, $0, calendar: calendar) && shouldJoinMediaStack(message, $0)
+            isSameCluster(message, $0, maxGap: maxGap, calendar: calendar) && shouldJoinMediaStack(message, $0)
         } ?? false
 
         switch (previousJoin, nextJoin) {
@@ -176,6 +225,17 @@ enum MessageGrouping {
         case (true, false):
             return .last
         }
+    }
+
+    private static func previousMessage(before index: Int, in messages: [Message]) -> Message? {
+        guard index > 0 else { return nil }
+        return messages[index - 1]
+    }
+
+    private static func nextMessage(after index: Int, in messages: [Message]) -> Message? {
+        let next = index + 1
+        guard next < messages.count else { return nil }
+        return messages[next]
     }
 
     private static func shouldJoinMediaStack(_ a: Message, _ b: Message) -> Bool {
@@ -225,7 +285,7 @@ enum MessageGrouping {
             replyTo: message.replyTo,
             reactions: [],
             delivery: message.delivery,
-            isEdited: message.isEdited,
+            editedAt: message.editedAt,
             isOutgoing: message.isOutgoing
         )
     }

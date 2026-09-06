@@ -8,6 +8,7 @@ final class MessageCollectionCell: UICollectionViewCell {
     var previewTarget: UIView { bubble }
 
     private let avatarView = UIImageView()
+    private let nameLabel = UILabel()
     private let bubble = BubbleBackgroundView()
     private let textLabel = UILabel()
     private let mediaView = MediaImageView(frame: .zero)
@@ -30,6 +31,8 @@ final class MessageCollectionCell: UICollectionViewCell {
     private var bubbleWidth: NSLayoutConstraint!
     private var leadingAlign: NSLayoutConstraint!
     private var trailingAlign: NSLayoutConstraint!
+    private var avatarWidth: NSLayoutConstraint!
+    private var avatarHeight: NSLayoutConstraint!
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -93,10 +96,14 @@ final class MessageCollectionCell: UICollectionViewCell {
         NSLayoutConstraint.activate(overlayMetadataConstraints)
         overlayMetadata.isHidden = true
 
+        nameLabel.numberOfLines = 1
+        nameLabel.lineBreakMode = .byTruncatingTail
+
         // Reaction chip sits UNDER the bubble, never on the media corner.
         bubbleColumn.axis = .vertical
         bubbleColumn.spacing = 4
         bubbleColumn.alignment = .fill
+        bubbleColumn.addArrangedSubview(nameLabel)
         bubbleColumn.addArrangedSubview(bubble)
         bubbleColumn.addArrangedSubview(reactions)
 
@@ -108,9 +115,11 @@ final class MessageCollectionCell: UICollectionViewCell {
         contentView.addSubview(hStack)
         hStack.translatesAutoresizingMaskIntoConstraints = false
 
+        avatarWidth = avatarView.widthAnchor.constraint(equalToConstant: 28)
+        avatarHeight = avatarView.heightAnchor.constraint(equalToConstant: 28)
         NSLayoutConstraint.activate([
-            avatarView.widthAnchor.constraint(equalToConstant: 28),
-            avatarView.heightAnchor.constraint(equalToConstant: 28),
+            avatarWidth,
+            avatarHeight,
             hStack.topAnchor.constraint(equalTo: contentView.topAnchor),
             hStack.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 8),
             hStack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -8),
@@ -147,20 +156,29 @@ final class MessageCollectionCell: UICollectionViewCell {
         trailingAlign.isActive = outgoing
         hStack.semanticContentAttribute = outgoing ? .forceRightToLeft : .forceLeftToRight
         bubbleColumn.alignment = outgoing ? .trailing : .leading
+        // Group avatar sits on the last bubble of the cluster.
+        hStack.alignment = decoration.reservesIncomingAvatarGutter ? .bottom : .top
 
+        nameLabel.isHidden = !decoration.showsIncomingName
+        nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        nameLabel.textColor = theme.colors.accent
+        nameLabel.text = participant?.displayName
+
+        avatarWidth.constant = theme.layout.incomingAvatarSize
+        avatarHeight.constant = theme.layout.incomingAvatarSize
         avatarView.isHidden = outgoing || !decoration.reservesIncomingAvatarGutter
         avatarView.alpha = decoration.showsIncomingAvatar ? 1 : 0
         avatarView.layer.cornerRadius = theme.layout.incomingAvatarSize / 2
         if let participant {
             avatarView.image = ImageLoader.image(from: participant.avatar)
-                ?? InitialGlyph.make(title: participant.displayName, size: 28, colors: theme.colors)
+                ?? InitialGlyph.make(title: participant.displayName, size: theme.layout.incomingAvatarSize, colors: theme.colors)
             if let avatar = participant.avatar {
                 ImageLoader.load(avatar) { [weak self] image in
                     if let image { self?.avatarView.image = image }
                 }
             }
         } else {
-            avatarView.image = InitialGlyph.make(title: "?", size: 28, colors: theme.colors)
+            avatarView.image = InitialGlyph.make(title: "?", size: theme.layout.incomingAvatarSize, colors: theme.colors)
         }
 
         bubble.corners = BubbleCorners.zustandB(outgoing: outgoing, decoration: decoration, radii: theme.radii)
@@ -214,9 +232,19 @@ final class MessageCollectionCell: UICollectionViewCell {
             // Bitmap is the bubble — no incoming/outgoing fill plate around the photo.
             bubble.fillColor = .clear
             bubble.setNeedsDisplay()
-            overlayMetadata.configure(message: message, theme: theme, onMedia: true)
+            overlayMetadata.configure(
+                message: message,
+                theme: theme,
+                onMedia: true,
+                showsFooter: decoration.showsFooter
+            )
         } else {
-            metadata.configure(message: message, theme: theme, onMedia: false)
+            metadata.configure(
+                message: message,
+                theme: theme,
+                onMedia: false,
+                showsFooter: decoration.showsFooter
+            )
             paddedBody.layoutMargins = UIEdgeInsets(
                 top: mediaVisible ? 6 : 8,
                 left: 10,
@@ -280,6 +308,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         overlayMetadata.prepareForReuse()
         overlayMetadata.isHidden = true
         paddedBody.isHidden = false
+        nameLabel.isHidden = true
         avatarView.alpha = 1
     }
 

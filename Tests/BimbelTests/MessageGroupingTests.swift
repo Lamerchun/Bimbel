@@ -49,9 +49,10 @@ final class MessageGroupingTests: XCTestCase {
             return nil
         }
         XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, false])
+        XCTAssertEqual(decorations.map(\.showsIncomingName), [false, false])
     }
 
-    func testIncomingAvatarAtGroupClusterStart() {
+    func testIncomingAvatarAtGroupClusterEnd() {
         let a = message("1", outgoing: false, kind: .text("hi", preview: nil), senderID: "ada")
         let b = message("2", outgoing: false, kind: .text("there", preview: nil), senderID: "ada")
         let c = message("3", outgoing: false, kind: .text("hey", preview: nil), senderID: "mira")
@@ -62,8 +63,9 @@ final class MessageGroupingTests: XCTestCase {
             if case .message(_, let decoration) = row { return decoration }
             return nil
         }
-        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [true, false, true])
+        XCTAssertEqual(decorations.map(\.showsIncomingAvatar), [false, true, true])
         XCTAssertEqual(decorations.map(\.reservesIncomingAvatarGutter), [true, true, true])
+        XCTAssertEqual(decorations.map(\.showsIncomingName), [true, false, true])
     }
 
     func testOneToOneDoesNotReserveAvatarGutter() {
@@ -88,12 +90,151 @@ final class MessageGroupingTests: XCTestCase {
     }
 
     func testGroupingSpacingTokens() {
+        XCTAssertEqual(ConversationTheme.default.grouping.maxGap, 180)
+        XCTAssertEqual(ConversationTheme.default.layout.groupingInnerSpacing, 3)
+        XCTAssertEqual(ConversationTheme.default.layout.groupingSequenceSpacing, 10)
         XCTAssertEqual(ConversationTheme.default.layout.clusterGap, 3)
         XCTAssertEqual(ConversationTheme.default.layout.sequenceGap, 10)
+        XCTAssertEqual(ConversationTheme.default.layout.mediaStackGap, 2)
+        XCTAssertNotEqual(
+            ConversationTheme.default.grouping.maxGap,
+            ConversationTheme.default.layout.mediaStackGap
+        )
         XCTAssertEqual(ConversationTheme.default.radii.residualTail, 3)
         XCTAssertEqual(ConversationTheme.default.radii.bubble, 22)
         XCTAssertEqual(ConversationTheme.default.layout.listComposerGap, 8)
         XCTAssertEqual(ConversationTheme.default.materials.headerBlurStyle, .systemChromeMaterial)
+    }
+
+    func testClusterWindowIsThreeMinutesNotAlbumSpacing() {
+        let first = message("1", outgoing: true, kind: .text("one", preview: nil), sentAt: day)
+        let inside = message(
+            "2",
+            outgoing: true,
+            kind: .text("two", preview: nil),
+            sentAt: day.addingTimeInterval(180)
+        )
+        let outside = message(
+            "3",
+            outgoing: true,
+            kind: .text("three", preview: nil),
+            sentAt: day.addingTimeInterval(181)
+        )
+        XCTAssertTrue(MessageGrouping.isSameCluster(first, inside))
+        XCTAssertFalse(MessageGrouping.isSameCluster(first, outside))
+
+        let insideRows = decorations(ConversationSnapshot(conversationID: "c", messages: [first, inside]))
+        XCTAssertEqual(insideRows.map(\.cluster), [.first, .last])
+        let splitRows = decorations(ConversationSnapshot(conversationID: "c", messages: [first, outside]))
+        XCTAssertEqual(splitRows.map(\.cluster), [.standalone, .standalone])
+    }
+
+    func testGroupRequiresSameAuthor() {
+        let ada = message("1", outgoing: false, kind: .text("hi", preview: nil), senderID: "ada")
+        let mira = message("2", outgoing: false, kind: .text("hey", preview: nil), senderID: "mira")
+        XCTAssertFalse(MessageGrouping.isSameCluster(ada, mira))
+    }
+
+    func testFooterCollapsesWhenNextSharesShortTimeAndStatus() {
+        let first = message(
+            "1",
+            outgoing: true,
+            kind: .text("one", preview: nil),
+            sentAt: day,
+            delivery: .read
+        )
+        let second = message(
+            "2",
+            outgoing: true,
+            kind: .text("two", preview: nil),
+            sentAt: day.addingTimeInterval(20),
+            delivery: .read
+        )
+        let rows = decorations(ConversationSnapshot(conversationID: "c", messages: [first, second]))
+        XCTAssertEqual(rows.map(\.showsFooter), [false, true])
+    }
+
+    func testFooterStaysForSendingAndFailed() {
+        let sending = message(
+            "1",
+            outgoing: true,
+            kind: .text("one", preview: nil),
+            sentAt: day,
+            delivery: .sending
+        )
+        let next = message(
+            "2",
+            outgoing: true,
+            kind: .text("two", preview: nil),
+            sentAt: day.addingTimeInterval(10),
+            delivery: .sending
+        )
+        XCTAssertEqual(
+            decorations(ConversationSnapshot(conversationID: "c", messages: [sending, next])).map(\.showsFooter),
+            [true, true]
+        )
+
+        let failed = message(
+            "f",
+            outgoing: true,
+            kind: .text("retry", preview: nil),
+            sentAt: day,
+            delivery: .failed
+        )
+        let after = message(
+            "g",
+            outgoing: true,
+            kind: .text("later", preview: nil),
+            sentAt: day.addingTimeInterval(10),
+            delivery: .sent
+        )
+        XCTAssertTrue(
+            decorations(ConversationSnapshot(conversationID: "c", messages: [failed, after]))[0].showsFooter
+        )
+    }
+
+    func testEditedKeepsFooter() {
+        let edited = message(
+            "1",
+            outgoing: true,
+            kind: .text("one", preview: nil),
+            sentAt: day,
+            delivery: .read,
+            editedAt: day.addingTimeInterval(5)
+        )
+        let next = message(
+            "2",
+            outgoing: true,
+            kind: .text("two", preview: nil),
+            sentAt: day.addingTimeInterval(15),
+            delivery: .read
+        )
+        XCTAssertTrue(
+            decorations(ConversationSnapshot(conversationID: "c", messages: [edited, next]))[0].showsFooter
+        )
+        XCTAssertTrue(edited.isEdited)
+        XCTAssertNotNil(edited.editedAt)
+    }
+
+    func testDifferentOutgoingStatusDoesNotCollapseFooter() {
+        let sent = message(
+            "1",
+            outgoing: true,
+            kind: .text("one", preview: nil),
+            sentAt: day,
+            delivery: .sent
+        )
+        let read = message(
+            "2",
+            outgoing: true,
+            kind: .text("two", preview: nil),
+            sentAt: day.addingTimeInterval(10),
+            delivery: .read
+        )
+        XCTAssertEqual(
+            decorations(ConversationSnapshot(conversationID: "c", messages: [sent, read])).map(\.showsFooter),
+            [true, true]
+        )
     }
 
     func testImageCaptionBecomesFollowingTextInMediaStack() {
@@ -177,12 +318,29 @@ final class MessageGroupingTests: XCTestCase {
         XCTAssertEqual(BimbelFormatters.badgeText(100), "99+")
     }
 
-    private func message(_ id: String, outgoing: Bool, kind: MessageKind, senderID: String? = nil) -> Message {
+    private func decorations(_ snapshot: ConversationSnapshot) -> [MessageDecoration] {
+        MessageGrouping.rows(from: snapshot).compactMap { row in
+            if case .message(_, let decoration) = row { return decoration }
+            return nil
+        }
+    }
+
+    private func message(
+        _ id: String,
+        outgoing: Bool,
+        kind: MessageKind,
+        senderID: String? = nil,
+        sentAt: Date? = nil,
+        delivery: DeliveryState = .sent,
+        editedAt: Date? = nil
+    ) -> Message {
         Message(
             id: id,
             senderID: senderID ?? (outgoing ? me : them),
-            sentAt: day,
+            sentAt: sentAt ?? day,
             kind: kind,
+            delivery: delivery,
+            editedAt: editedAt,
             isOutgoing: outgoing
         )
     }

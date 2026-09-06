@@ -8,6 +8,7 @@ public struct ConversationTheme: Sendable {
     public var radii: Radii
     public var layout: Layout
     public var fonts: Fonts
+    public var grouping: Grouping
     public var deliveryAccessory: DeliveryAccessory
 
     public init(
@@ -16,6 +17,7 @@ public struct ConversationTheme: Sendable {
         radii: Radii = .bimbel,
         layout: Layout = .bimbel,
         fonts: Fonts = .bimbel,
+        grouping: Grouping = .bimbel,
         deliveryAccessory: DeliveryAccessory = .ticks
     ) {
         self.colors = colors
@@ -23,6 +25,7 @@ public struct ConversationTheme: Sendable {
         self.radii = radii
         self.layout = layout
         self.fonts = fonts
+        self.grouping = grouping
         self.deliveryAccessory = deliveryAccessory
     }
 
@@ -337,6 +340,18 @@ public struct ConversationTheme: Sendable {
         public static let bimbel = Radii()
     }
 
+    /// Time window for bubble clusters. Not media-stack / album spacing.
+    public struct Grouping: Equatable, Sendable {
+        /// Same direction (and same author in a group) cluster together inside this gap.
+        public var maxGap: TimeInterval
+
+        public init(maxGap: TimeInterval = 180) {
+            self.maxGap = maxGap
+        }
+
+        public static let bimbel = Grouping()
+    }
+
     public struct Layout: Equatable, Sendable {
         public var bubbleMaxWidthRatio: CGFloat
         public var sequenceGap: CGFloat
@@ -367,6 +382,16 @@ public struct ConversationTheme: Sendable {
         public var inboxUnreadDot: CGFloat
         /// Hairline under the text column, not under the avatar.
         public var inboxSeparatorInset: CGFloat
+        /// Tight spacing inside a time cluster. Same value as `clusterGap`. Not `grouping.maxGap`.
+        public var groupingInnerSpacing: CGFloat {
+            get { clusterGap }
+            set { clusterGap = newValue }
+        }
+        /// Spacing between clusters / sequences. Same value as `sequenceGap`. Not media-stack gap.
+        public var groupingSequenceSpacing: CGFloat {
+            get { sequenceGap }
+            set { sequenceGap = newValue }
+        }
 
         public init(
             bubbleMaxWidthRatio: CGFloat = 0.78,

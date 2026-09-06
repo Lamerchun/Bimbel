@@ -17,7 +17,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         items = Self.seedItems(now: now)
         threads[adaID] = Self.seedAda(me: me, them: "ada")
         threads["jules"] = Self.shortThread(idPrefix: "j", peer: "jules", me: me, line: "Call me when you land.", minutesAgo: 80)
-        threads["design"] = Self.shortThread(idPrefix: "d", peer: "design", me: me, line: "Moodboard is in the shared folder.", minutesAgo: 180, outgoingLast: false)
+        threads["design"] = Self.seedDesign(me: me, minutesAgo: 180)
         threads["mira"] = Self.shortThread(idPrefix: "mi", peer: "mira", me: me, line: "Did you lock the studio?", minutesAgo: 12)
         threads["nico"] = Self.shortThread(idPrefix: "n", peer: "nico", me: me, line: InboxAttachmentLabel.photo, minutesAgo: 3 * 1_440)
         threads["studio"] = Self.shortThread(idPrefix: "s", peer: "studio", me: me, line: "Catching up after the show. Save me a seat near the back.", minutesAgo: 2 * 1_440)
@@ -359,6 +359,65 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
         ]
     }
 
+    private static func seedDesign(me: UserID, minutesAgo: TimeInterval) -> [Message] {
+        let start = Date().addingTimeInterval(-minutesAgo * 60)
+        func at(_ seconds: TimeInterval) -> Date { start.addingTimeInterval(seconds) }
+        return [
+            Message(
+                id: "d-1",
+                senderID: "jules",
+                sentAt: at(0),
+                kind: .text("Anyone still in the file?", preview: nil),
+                isOutgoing: false
+            ),
+            Message(
+                id: "d-2",
+                senderID: me,
+                sentAt: at(25),
+                kind: .text("I am. Hang on.", preview: nil),
+                delivery: .failed,
+                isOutgoing: true
+            ),
+            Message(
+                id: "d-3",
+                senderID: me,
+                sentAt: at(50),
+                kind: .text("There — it went through.", preview: nil),
+                delivery: .read,
+                isOutgoing: true
+            ),
+            Message(
+                id: "d-4",
+                senderID: "mira",
+                sentAt: at(70),
+                kind: .text("I added two more frames.", preview: nil),
+                editedAt: at(95),
+                isOutgoing: false
+            ),
+            Message(
+                id: "d-5",
+                senderID: "mira",
+                sentAt: at(85),
+                kind: .text("Use the second one if it feels quieter.", preview: nil),
+                isOutgoing: false
+            ),
+            Message(
+                id: "d-6",
+                senderID: "ada",
+                sentAt: at(110),
+                kind: .text("Second one is cleaner.", preview: nil),
+                isOutgoing: false
+            ),
+            Message(
+                id: "d-7",
+                senderID: "mira",
+                sentAt: at(140),
+                kind: .text("Moodboard is in the shared folder.", preview: nil),
+                isOutgoing: false
+            )
+        ]
+    }
+
     private static func seedAda(me: UserID, them: UserID) -> [Message] {
         let now = Date()
         func at(_ minutes: TimeInterval) -> Date { now.addingTimeInterval(-minutes * 60) }
@@ -383,7 +442,7 @@ final class FakeConversationDataSource: ConversationDataSource, InboxDataSource 
             ),
             Message(id: "m-10", senderID: me, sentAt: at(55), kind: .text("Yes. That's it.", preview: nil), delivery: .read, isOutgoing: true),
             Message(id: "m-11", senderID: them, sentAt: at(50), kind: .voice(Voice(duration: 6, waveform: [0.2, 0.4, 0.8, 0.5, 0.9, 0.3, 0.6])), isOutgoing: false),
-            Message(id: "m-12", senderID: me, sentAt: at(42), kind: .text("I'll pin it on the board when I get in.", preview: nil), delivery: .delivered, isOutgoing: true),
+            Message(id: "m-12", senderID: me, sentAt: at(42), kind: .text("I'll pin it on the board when I get in.", preview: nil), delivery: .delivered, editedAt: at(41), isOutgoing: true),
             Message(id: "m-13", senderID: them, sentAt: at(36), kind: .system("The message timer was updated. New messages will disappear from this chat after 7 days."), isOutgoing: false),
             Message(id: "m-14", senderID: them, sentAt: at(28), kind: .text("Lunch still on?", preview: nil), isOutgoing: false),
             Message(id: "m-15", senderID: me, sentAt: at(24), kind: .text("1:30 works. The usual place.", preview: nil), delivery: .read, isOutgoing: true),

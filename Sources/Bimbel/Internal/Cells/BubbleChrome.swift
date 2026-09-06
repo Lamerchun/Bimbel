@@ -125,8 +125,19 @@ final class MetadataOverlay: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    func configure(message: Message, theme: ConversationTheme, onMedia: Bool = false) {
-        timeLabel.text = BimbelFormatters.messageTime.string(from: message.sentAt)
+    func configure(
+        message: Message,
+        theme: ConversationTheme,
+        onMedia: Bool = false,
+        showsFooter: Bool = true
+    ) {
+        isHidden = !showsFooter
+        let clock = BimbelFormatters.messageTime.string(from: message.sentAt)
+        if message.editedAt != nil {
+            timeLabel.text = "\(String(localized: "Edited")) \(clock)"
+        } else {
+            timeLabel.text = clock
+        }
         timeLabel.font = theme.fonts.metadata
         if onMedia {
             timeLabel.textColor = .white
@@ -141,6 +152,7 @@ final class MetadataOverlay: UIView {
     }
 
     func prepareForReuse() {
+        isHidden = false
         accessoryView.isHidden = true
         accessoryView.image = nil
         backgroundColor = .clear

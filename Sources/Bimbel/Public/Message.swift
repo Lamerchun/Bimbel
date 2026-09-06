@@ -106,8 +106,14 @@ public struct Message: Hashable, Sendable, Identifiable {
     public var replyTo: MessageID?
     public var reactions: [Reaction]
     public var delivery: DeliveryState
-    public var isEdited: Bool
+    /// Host snapshot. Non-nil shows Edited in the footer.
+    public var editedAt: Date?
     public var isOutgoing: Bool
+
+    public var isEdited: Bool {
+        get { editedAt != nil }
+        set { editedAt = newValue ? (editedAt ?? sentAt) : nil }
+    }
 
     public init(
         id: MessageID,
@@ -118,6 +124,7 @@ public struct Message: Hashable, Sendable, Identifiable {
         reactions: [Reaction] = [],
         delivery: DeliveryState = .sent,
         isEdited: Bool = false,
+        editedAt: Date? = nil,
         isOutgoing: Bool
     ) {
         self.id = id
@@ -127,7 +134,7 @@ public struct Message: Hashable, Sendable, Identifiable {
         self.replyTo = replyTo
         self.reactions = reactions
         self.delivery = delivery
-        self.isEdited = isEdited
+        self.editedAt = editedAt ?? (isEdited ? sentAt : nil)
         self.isOutgoing = isOutgoing
     }
 }

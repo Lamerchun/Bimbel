@@ -120,7 +120,7 @@ open class ConversationViewController: UIViewController {
     /// Host-driven update path. Prefer this over mutating arrays the view already read.
     public func apply(_ snapshot: ConversationSnapshot, animatingDifferences: Bool) {
         self.snapshot = snapshot
-        rows = MessageGrouping.rows(from: snapshot)
+        rows = MessageGrouping.rows(from: snapshot, maxGap: theme.grouping.maxGap)
         var next = NSDiffableDataSourceSnapshot<ChatSection, ChatRow>()
         next.appendSections([.thread])
         next.appendItems(rows, toSection: .thread)
@@ -155,7 +155,7 @@ open class ConversationViewController: UIViewController {
         chatLayout.keepContentOffsetAtBottomOnBatchUpdates = true
         chatLayout.keepContentAtBottomOfVisibleArea = true
         chatLayout.settings.estimatedItemSize = CGSize(width: UIScreen.main.bounds.width, height: 84)
-        chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
+        chatLayout.settings.interItemSpacing = theme.layout.groupingSequenceSpacing
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.listComposerGap,
             left: 0,
@@ -338,7 +338,7 @@ open class ConversationViewController: UIViewController {
         fab.backgroundColor = theme.colors.fabFill
         fab.tintColor = theme.colors.fabIcon
         fab.layer.cornerRadius = 22
-        chatLayout.settings.interItemSpacing = theme.layout.sequenceGap
+        chatLayout.settings.interItemSpacing = theme.layout.groupingSequenceSpacing
         chatLayout.settings.additionalInsets = UIEdgeInsets(
             top: theme.layout.listComposerGap,
             left: 0,
@@ -560,19 +560,19 @@ extension ConversationViewController: ChatLayoutDelegate {
     }
 
     public func interItemSpacing(_ chatLayout: CollectionViewChatLayout, after indexPath: IndexPath) -> CGFloat? {
-        guard indexPath.item + 1 < rows.count else { return theme.layout.sequenceGap }
+        guard indexPath.item + 1 < rows.count else { return theme.layout.groupingSequenceSpacing }
         let current = rows[indexPath.item]
         let next = rows[indexPath.item + 1]
         guard case .message(let a, let da) = current, case .message(let b, let db) = next else {
-            return theme.layout.sequenceGap
+            return theme.layout.groupingSequenceSpacing
         }
         if da.mediaStack.joinsBottom || db.mediaStack.joinsTop {
             return theme.layout.mediaStackGap
         }
         if da.cluster.isLastInCluster || a.senderID != b.senderID {
-            return theme.layout.sequenceGap
+            return theme.layout.groupingSequenceSpacing
         }
-        return theme.layout.clusterGap
+        return theme.layout.groupingInnerSpacing
     }
 }
 
