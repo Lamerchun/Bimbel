@@ -47,7 +47,9 @@ conversation.apply(snapshot, animatingDifferences: true)
 
 ## Keyboard (do not “binary hide”)
 
-See README → Keyboard. Signal-iOS `ConversationBottomBar`: composer stays in the conversation VC; pin `bottomAnchor` to `keyboardLayoutGuide.topAnchor` when `shouldAttachToKeyboardLayoutGuide` is true. No `inputAccessoryView`. `textViewShouldBeginEditing` returns true. `keyboardDismissMode = .interactive`. List insets have one owner (`ComposerKeyboardTracker`): covering edge = composer top + `listComposerGap` (8). Do not add keyboard height on top of the layout-guide pin. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`. Do not use IBAV `KeyboardManager`. SwiftUI `ConversationView` wraps `ConversationViewController` — do not rebuild the thread in SwiftUI.
+See README → Keyboard. Signal-iOS `ConversationBottomBar`: composer stays in the conversation VC; pin `bottomAnchor` to `keyboardLayoutGuide.topAnchor` when `shouldAttachToKeyboardLayoutGuide` is true. No `inputAccessoryView`. `textViewShouldBeginEditing` returns true. `keyboardDismissMode = .interactive` on the list **and** on the composer chrome scroll / Message field so a downward pan can start on plus, pill, or the field. The bar rides the layout guide. List insets have one owner (`ComposerKeyboardTracker`): covering edge = composer top + `listComposerGap` (8). Do not add keyboard height on top of the layout-guide pin. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`. Do not use IBAV `KeyboardManager`. SwiftUI `ConversationView` wraps `ConversationViewController` — do not rebuild the thread in SwiftUI.
+
+Voice hold: press the mic for a live waveform. Slide left to cancel, slide up to lock (`layout.voiceCancelTranslation` / `voiceLockTranslation`, 80). Release sends. Locked bar is Cancel · waveform · pause · send, still on the composer — not a centered modal. Everyday copy only (no competitor names). Attach sheet and a live recording disable the dismiss pan.
 
 ## Themes
 

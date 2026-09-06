@@ -54,7 +54,10 @@ final class ComposerView: UIView, UITextViewDelegate {
     private var textHeightConstraint: NSLayoutConstraint?
     private var suppressPlusTap = false
     private var micHoldOrigin: CGPoint = .zero
-    var isDismissPassthroughEnabled = true
+    private let dismissScroll = UIScrollView()
+    var isDismissPassthroughEnabled = true {
+        didSet { dismissScroll.isScrollEnabled = isDismissPassthroughEnabled }
+    }
 
     var text: String {
         get { textView.text ?? "" }
@@ -106,7 +109,8 @@ final class ComposerView: UIView, UITextViewDelegate {
         textView.textContainerInset = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 4)
         textView.textContainer.lineFragmentPadding = 0
         textView.isScrollEnabled = false
-        textView.keyboardDismissMode = .none
+        textView.keyboardDismissMode = .interactive
+        textView.alwaysBounceVertical = true
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         plusButton.isExclusiveTouch = false
         cameraButton.isExclusiveTouch = false
@@ -193,17 +197,34 @@ final class ComposerView: UIView, UITextViewDelegate {
         stack.spacing = 6
         stack.addArrangedSubview(replyBanner)
         stack.addArrangedSubview(row)
-        addSubview(stack)
+
+        // Chrome lives in a bouncing scroll view so a downward pan on plus /
+        // pill / camera / mic drives `keyboardDismissMode = .interactive`.
+        // The composer stays pinned to `keyboardLayoutGuide` — not an accessory.
+        dismissScroll.keyboardDismissMode = .interactive
+        dismissScroll.alwaysBounceVertical = true
+        dismissScroll.showsVerticalScrollIndicator = false
+        dismissScroll.showsHorizontalScrollIndicator = false
+        dismissScroll.contentInsetAdjustmentBehavior = .never
+        dismissScroll.delaysContentTouches = true
+        dismissScroll.canCancelContentTouches = true
+        dismissScroll.isDirectionalLockEnabled = true
+        dismissScroll.backgroundColor = .clear
+        dismissScroll.clipsToBounds = false
+        dismissScroll.accessibilityIdentifier = "composer.dismiss.scroll"
+        addSubview(dismissScroll)
+        dismissScroll.bimbelPinToEdges(of: self)
+        dismissScroll.addSubview(stack)
         stack.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6)
+            stack.topAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.topAnchor, constant: 4),
+            stack.leadingAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.trailingAnchor, constant: -8),
+            stack.bottomAnchor.constraint(equalTo: dismissScroll.contentLayoutGuide.bottomAnchor, constant: -6),
+            stack.widthAnchor.constraint(equalTo: dismissScroll.frameLayoutGuide.widthAnchor, constant: -16)
         ])
 
         apply(theme: theme, sendable: false, sheetPresented: false)
-        installChromeDismissPassthrough()
     }
 
     override func didMoveToSuperview() {
@@ -217,30 +238,6 @@ final class ComposerView: UIView, UITextViewDelegate {
             _ = keyboardLayoutGuide
         }
     }
-
-    /// Vertical pans on Plus / pill chrome / mic start UIKit's interactive dismiss.
-    /// Text selection and an in-progress voice hold are excluded.
-    private func installChromeDismissPassthrough() {
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleChromeDismissPan(_:)))
-        pan.cancelsTouchesInView = false
-        pan.delegate = self
-        addGestureRecognizer(pan)
-        plusButton.addGestureRecognizer(passthroughPan())
-        cameraButton.addGestureRecognizer(passthroughPan())
-        actionButton.addGestureRecognizer(passthroughPan())
-        pill.addGestureRecognizer(passthroughPan())
-    }
-
-    private func passthroughPan() -> UIPanGestureRecognizer {
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handleChromeDismissPan(_:)))
-        pan.cancelsTouchesInView = false
-        pan.delegate = self
-        return pan
-    }
-
-    /// Intentionally empty: `keyboardDismissMode = .interactive` owns the keyboard.
-    /// The recognizer exists so chrome pans are not eaten by UIButton tracking.
-    @objc private func handleChromeDismissPan(_ pan: UIPanGestureRecognizer) {}
 
     override var intrinsicContentSize: CGSize {
         let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
@@ -339,7 +336,7 @@ final class ComposerView: UIView, UITextViewDelegate {
         placeholderLabel.isHidden = !textView.text.isEmpty
         let fit = textView.sizeThatFits(CGSize(width: textView.bounds.width, height: 120))
         let height = min(max(40, fit.height), 120)
-        textView.isScrollEnabled = fit.height > 120
+        textView.isScrollEnabled = true
         textHeightConstraint?.constant = height
         invalidateIntrinsicContentSize()
         delegate?.composerDidChangeText(self)
@@ -444,31 +441,6 @@ final class ComposerAccentCircle: UIView {
 
 extension ComposerView: ConversationBottomBar {
     var shouldAttachToKeyboardLayoutGuide: Bool { true }
-}
-
-extension ComposerView: UIGestureRecognizerDelegate {
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard gestureRecognizer is UIPanGestureRecognizer else { return true }
-        guard isDismissPassthroughEnabled else { return false }
-        if let view = touch.view, view === textView || view.isDescendant(of: textView) {
-            return false
-        }
-        return true
-    }
-
-    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
-        guard isDismissPassthroughEnabled else { return false }
-        let velocity = pan.velocity(in: self)
-        return abs(velocity.y) > abs(velocity.x)
-    }
-
-    func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
-    ) -> Bool {
-        true
-    }
 }
 
 final class ReplyQuoteView: UIView {

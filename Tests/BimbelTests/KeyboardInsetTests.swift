@@ -95,6 +95,23 @@ final class KeyboardInsetTests: XCTestCase {
 
     func testTextViewHasNoInputAccessoryView() {
         XCTAssertNil(ComposerTextView().inputAccessoryView)
+        XCTAssertNil(ComposerView().textView.inputAccessoryView)
+    }
+
+    func testComposerChromeAndFieldDismissKeyboardInteractively() {
+        let composer = ComposerView()
+        XCTAssertTrue(composer.shouldAttachToKeyboardLayoutGuide)
+        XCTAssertEqual(composer.textView.keyboardDismissMode, .interactive)
+        XCTAssertTrue(composer.textView.alwaysBounceVertical)
+        let scroll = composer.subviews.compactMap { $0 as? UIScrollView }.first
+        XCTAssertEqual(scroll?.keyboardDismissMode, .interactive)
+        XCTAssertEqual(scroll?.alwaysBounceVertical, true)
+        XCTAssertEqual(scroll?.accessibilityIdentifier, "composer.dismiss.scroll")
+
+        composer.isDismissPassthroughEnabled = false
+        XCTAssertEqual(scroll?.isScrollEnabled, false)
+        composer.isDismissPassthroughEnabled = true
+        XCTAssertEqual(scroll?.isScrollEnabled, true)
     }
 
     func testMicSendFillIsACircleNotTheButtonBackground() {

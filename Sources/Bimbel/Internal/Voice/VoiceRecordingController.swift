@@ -1,10 +1,26 @@
 import AVFoundation
 import UIKit
 
-enum VoiceGestureOutcome {
+enum VoiceGestureOutcome: Equatable {
     case send
     case cancel
     case lock
+}
+
+enum VoiceGesture {
+    /// Horizontal cancel vs vertical lock. The stronger axis wins so a diagonal
+    /// hold does not fire both.
+    static func outcome(
+        translation: CGPoint,
+        cancelAt: CGFloat,
+        lockAt: CGFloat
+    ) -> VoiceGestureOutcome? {
+        let left = -translation.x
+        let up = -translation.y
+        if up >= lockAt, up >= left { return .lock }
+        if left >= cancelAt, left >= up { return .cancel }
+        return nil
+    }
 }
 
 @MainActor
@@ -41,11 +57,9 @@ final class VoiceRecordingController {
         startEngine(url: url)
     }
 
-    func update(translation: CGPoint) -> VoiceGestureOutcome? {
+    func update(translation: CGPoint, cancelAt: CGFloat, lockAt: CGFloat) -> VoiceGestureOutcome? {
         guard state == .recording else { return nil }
-        if translation.x < -80 { return .cancel }
-        if translation.y < -80 { return .lock }
-        return nil
+        return VoiceGesture.outcome(translation: translation, cancelAt: cancelAt, lockAt: lockAt)
     }
 
     func lock() {
@@ -134,139 +148,5 @@ final class VoiceRecordingController {
         if !keepFile, let fileURL {
             try? FileManager.default.removeItem(at: fileURL)
         }
-    }
-}
-
-final class VoiceLockOverlay: UIView {
-    var onCancel: (() -> Void)?
-    var onLock: (() -> Void)?
-    var onPause: (() -> Void)?
-    var onSend: (() -> Void)?
-
-    private let waveform = WaveformView()
-    private let timeLabel = UILabel()
-    private let hintLabel = UILabel()
-    private let cancelButton = HitTargetButton(type: .system)
-    private let lockButton = HitTargetButton(type: .system)
-    private let pauseButton = HitTargetButton(type: .system)
-    private let sendButton = HitTargetButton(type: .system)
-    private var locked = false
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = UIColor.black.withAlphaComponent(0.18)
-        isHidden = true
-
-        timeLabel.font = .monospacedDigitSystemFont(ofSize: 16, weight: .medium)
-        timeLabel.textColor = .white
-        hintLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        hintLabel.textColor = UIColor.white.withAlphaComponent(0.85)
-        hintLabel.text = "Slide left to cancel · slide up to lock"
-
-        cancelButton.setTitle("Cancel", for: .normal)
-        cancelButton.addTarget(self, action: #selector(tapCancel), for: .touchUpInside)
-        cancelButton.accessibilityLabel = "Cancel recording"
-
-        lockButton.setImage(UIImage(systemName: "lock.fill"), for: .normal)
-        lockButton.addTarget(self, action: #selector(tapLock), for: .touchUpInside)
-        lockButton.accessibilityLabel = "Lock recording"
-
-        pauseButton.setImage(UIImage(systemName: "pause.fill"), for: .normal)
-        pauseButton.addTarget(self, action: #selector(tapPause), for: .touchUpInside)
-        pauseButton.accessibilityLabel = "Pause recording"
-        pauseButton.isHidden = true
-
-        sendButton.setImage(UIImage(systemName: "paperplane.fill"), for: .normal)
-        sendButton.addTarget(self, action: #selector(tapSend), for: .touchUpInside)
-        sendButton.accessibilityLabel = "Send voice message"
-        sendButton.isHidden = true
-
-        let column = UIStackView(arrangedSubviews: [lockButton, waveform, timeLabel, hintLabel, cancelButton, pauseButton, sendButton])
-        column.axis = .vertical
-        column.alignment = .center
-        column.spacing = 10
-        addSubview(column)
-        column.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            column.centerXAnchor.constraint(equalTo: centerXAnchor),
-            column.centerYAnchor.constraint(equalTo: centerYAnchor),
-            waveform.widthAnchor.constraint(equalToConstant: 180),
-            waveform.heightAnchor.constraint(equalToConstant: 36)
-        ])
-        [cancelButton, lockButton, pauseButton, sendButton].forEach {
-            $0.tintColor = .white
-            $0.setTitleColor(.white, for: .normal)
-        }
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    func showRecording() {
-        isHidden = false
-        locked = false
-        pauseButton.isHidden = true
-        sendButton.isHidden = true
-        lockButton.isHidden = false
-        cancelButton.isHidden = false
-        hintLabel.isHidden = false
-        accessibilityViewIsModal = true
-        UIAccessibility.post(notification: .layoutChanged, argument: cancelButton)
-    }
-
-    func showLocked() {
-        locked = true
-        pauseButton.isHidden = false
-        sendButton.isHidden = false
-        lockButton.isHidden = true
-        hintLabel.isHidden = true
-        hintLabel.text = "Locked"
-        UIAccessibility.post(notification: .layoutChanged, argument: pauseButton)
-    }
-
-    func hide() {
-        isHidden = true
-        waveform.reset()
-    }
-
-    func pushLevel(_ level: Float, duration: TimeInterval) {
-        waveform.push(level)
-        timeLabel.text = BimbelFormatters.duration(duration)
-    }
-
-    @objc private func tapCancel() { onCancel?() }
-    @objc private func tapLock() { onLock?() }
-    @objc private func tapPause() { onPause?() }
-    @objc private func tapSend() { onSend?() }
-}
-
-final class WaveformView: UIView {
-    private var samples: [CGFloat] = Array(repeating: 0.2, count: 32)
-
-    override func draw(_ rect: CGRect) {
-        guard let color = tintColor else { return }
-        color.setFill()
-        let width = bounds.width / CGFloat(samples.count)
-        for (index, sample) in samples.enumerated() {
-            let height = max(3, sample * bounds.height)
-            let bar = CGRect(x: CGFloat(index) * width + 1, y: (bounds.height - height) / 2, width: width - 2, height: height)
-            UIBezierPath(roundedRect: bar, cornerRadius: 1.2).fill()
-        }
-    }
-
-    func push(_ value: Float) {
-        let normalized: CGFloat
-        if value > -1, value < 1.5 {
-            normalized = CGFloat(min(1, max(0.08, value)))
-        } else {
-            normalized = CGFloat(min(1, max(0.08, (value + 50) / 50)))
-        }
-        samples.removeFirst()
-        samples.append(normalized)
-        setNeedsDisplay()
-    }
-
-    func reset() {
-        samples = Array(repeating: 0.2, count: 32)
-        setNeedsDisplay()
     }
 }

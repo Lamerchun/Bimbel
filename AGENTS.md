@@ -46,9 +46,10 @@ inbox.apply(store.snapshot(), animatingDifferences: false)
 - Thread list basis is UIKit `UICollectionView` + ChatLayout. Do not replace it with SwiftUI `List`/`ScrollView`.
 - Inbox is a `UITableView` (leading read/pin, trailing mute/delete). Same theme tokens. No second look.
 - Do not use InputBarAccessoryView. Zustand B composer is ours.
-- Keyboard: Signal-iOS `ConversationBottomBar` — composer stays in the VC, `bottomAnchor = keyboardLayoutGuide.topAnchor` when `shouldAttachToKeyboardLayoutGuide` is true. No `inputAccessoryView`. `keyboardDismissMode = .interactive`. Tap Message focuses immediately (`textViewShouldBeginEditing` returns true).
+- Keyboard: Signal-iOS `ConversationBottomBar` — composer stays in the VC, `bottomAnchor = keyboardLayoutGuide.topAnchor` when `shouldAttachToKeyboardLayoutGuide` is true. No `inputAccessoryView`. `keyboardDismissMode = .interactive` on the list and on the composer chrome scroll / Message field. Tap Message focuses immediately (`textViewShouldBeginEditing` returns true).
 - Do not give ChatLayout `additionalSafeAreaInsets` for the keyboard. One inset owner (`ComposerKeyboardTracker`): covering edge is composer top + `listComposerGap` (8). Do not add keyboard height on top of the layout-guide pin. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`. `detach()` on the main actor; do not touch observers in `deinit`.
-- Attach sheet: Plus becomes the keyboard button; composer stays in the VC above the sheet. Voice-lock and the sheet disable the dismiss pan.
+- Attach sheet: Plus becomes the keyboard button; composer stays in the VC above the sheet. Voice hold/lock and the sheet disable the dismiss pan.
+- Voice: hold mic → live waveform; slide left to cancel, slide up to lock; release sends. Everyday copy only.
 - Media stacks are fully rounded like the NEW bubble design, not iMessage collapse.
 
 Sample app: `Sample/BimbelSample`. Launches on the inbox. Tap **Ada** for the full thread. Tap the large title (or a conversation title) to switch Default ↔ Blue.

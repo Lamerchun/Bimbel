@@ -69,10 +69,11 @@ The conversation VC pins the Zustand B composer to `keyboardLayoutGuide` (Signal
 1. Zustand B composer is plus + pill + camera + mic/send — not a full-width bar. One instance that **stays in the conversation VC**.
 2. `shouldAttachToKeyboardLayoutGuide == true`: `composer.bottomAnchor = keyboardLayoutGuide.topAnchor`. Message-request style bars pin to the container / safe-area bottom instead.
 3. `textViewShouldBeginEditing` returns **true**. Tap Message focuses immediately. The composer never leaves the VC, so it cannot jump under the home indicator.
-4. `collectionView.keyboardDismissMode = .interactive`. The bar rides the layout guide, so it follows the drag.
+4. `collectionView.keyboardDismissMode = .interactive`. The composer chrome is a bouncing scroll (`composer.dismiss.scroll`) and the Message field also uses `.interactive`, so a downward pan can start on plus / pill / field. The bar rides the layout guide.
 5. List `contentInset.bottom` has one owner (`ComposerKeyboardTracker`): the top of the composer plus `layout.listComposerGap` (8). Do not add keyboard height on top of a layout-guide-pinned bar. Do not flush layout from `scrollViewDidScroll` / `viewDidLayoutSubviews`.
-6. Attach sheet is the text view’s `inputView`. Voice-lock and the attach sheet disable the dismiss pan.
-7. iOS 26: first access of `keyboardLayoutGuide` can report only the home-indicator height (~34). Touch the guide in `viewDidLoad` / `didMoveToSuperview` so later constraints see the real keyboard.
+6. Attach sheet is the text view’s `inputView`. A live voice hold/lock and the attach sheet disable the dismiss pan.
+7. Voice: hold mic → live waveform. Slide left to cancel, slide up to lock. Release sends. Locked: cancel, pause, send on the composer strip.
+8. iOS 26: first access of `keyboardLayoutGuide` can report only the home-indicator height (~34). Touch the guide in `viewDidLoad` / `didMoveToSuperview` so later constraints see the real keyboard.
 
 Do not use IBAV `KeyboardManager` as the position owner. SwiftUI `ConversationView` is a `UIViewControllerRepresentable` around this UIKit controller.
 

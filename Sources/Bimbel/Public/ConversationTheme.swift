@@ -400,6 +400,10 @@ public struct ConversationTheme: Sendable {
         public var headerIcon: CGFloat
         /// Draw-editor stroke width. §3: ~4, one color = accent.
         public var drawStrokeWidth: CGFloat
+        /// Hold-mic: slide left this far to cancel.
+        public var voiceCancelTranslation: CGFloat
+        /// Hold-mic: slide up this far to lock.
+        public var voiceLockTranslation: CGFloat
         /// Tight spacing inside a time cluster. Same value as `clusterGap`. Not `grouping.maxGap`.
         public var groupingInnerSpacing: CGFloat {
             get { clusterGap }
@@ -440,7 +444,9 @@ public struct ConversationTheme: Sendable {
             approvalThumb: CGFloat = 64,
             approvalThumbGap: CGFloat = 8,
             headerIcon: CGFloat = 22,
-            drawStrokeWidth: CGFloat = 4
+            drawStrokeWidth: CGFloat = 4,
+            voiceCancelTranslation: CGFloat = 80,
+            voiceLockTranslation: CGFloat = 80
         ) {
             self.bubbleMaxWidthRatio = bubbleMaxWidthRatio
             self.sequenceGap = sequenceGap
@@ -471,6 +477,8 @@ public struct ConversationTheme: Sendable {
             self.approvalThumbGap = approvalThumbGap
             self.headerIcon = headerIcon
             self.drawStrokeWidth = drawStrokeWidth
+            self.voiceCancelTranslation = voiceCancelTranslation
+            self.voiceLockTranslation = voiceLockTranslation
         }
 
         public static let bimbel = Layout()

@@ -207,7 +207,13 @@ open class ConversationViewController: UIViewController {
         updateBottomBar()
 
         view.addSubview(voiceOverlay)
-        voiceOverlay.bimbelPinToEdges(of: view)
+        voiceOverlay.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            voiceOverlay.topAnchor.constraint(equalTo: view.topAnchor),
+            voiceOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            voiceOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            voiceOverlay.bottomAnchor.constraint(equalTo: bottomChrome.bottomAnchor)
+        ])
 
         fab.setImage(UIImage(systemName: "chevron.down"), for: .normal)
         fab.addTarget(self, action: #selector(tapFAB), for: .touchUpInside)
@@ -335,7 +341,12 @@ open class ConversationViewController: UIViewController {
             switch state {
             case .idle: self.voiceOverlay.hide()
             case .recording: self.voiceOverlay.showRecording()
-            case .locked, .paused: self.voiceOverlay.showLocked()
+            case .locked:
+                self.voiceOverlay.showLocked()
+                self.voiceOverlay.setPaused(false)
+            case .paused:
+                self.voiceOverlay.showLocked()
+                self.voiceOverlay.setPaused(true)
             }
             self.updateDismissPanEnabled()
         }
@@ -362,6 +373,7 @@ open class ConversationViewController: UIViewController {
         )
         selectionToolbar.apply(theme: theme, selectedCount: selectedIDs.count)
         attachmentSheet.apply(theme: theme)
+        voiceOverlay.apply(theme: theme)
         fab.backgroundColor = theme.colors.fabFill
         fab.tintColor = theme.colors.fabIcon
         fab.layer.cornerRadius = 22
@@ -892,7 +904,10 @@ extension ConversationViewController: ComposerViewDelegate {
     }
 
     func composerDidUpdateMicHold(_ composer: ComposerView, translation: CGPoint) {
-        switch voice.update(translation: translation) {
+        let cancelAt = theme.layout.voiceCancelTranslation
+        let lockAt = theme.layout.voiceLockTranslation
+        voiceOverlay.applyHoldProgress(translation, cancelAt: cancelAt, lockAt: lockAt)
+        switch voice.update(translation: translation, cancelAt: cancelAt, lockAt: lockAt) {
         case .cancel: voice.cancel()
         case .lock: voice.lock()
         case .send, .none: break
@@ -902,7 +917,11 @@ extension ConversationViewController: ComposerViewDelegate {
     func composerDidEndMicHold(_ composer: ComposerView, translation: CGPoint) {
         switch voice.state {
         case .recording:
-            if translation.x < -80 {
+            if VoiceGesture.outcome(
+                translation: translation,
+                cancelAt: theme.layout.voiceCancelTranslation,
+                lockAt: theme.layout.voiceLockTranslation
+            ) == .cancel {
                 voice.cancel()
             } else {
                 sendVoice()
