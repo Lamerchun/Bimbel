@@ -916,10 +916,10 @@ extension ConversationViewController: ComposerViewDelegate {
         let cancelAt = theme.layout.voiceCancelTranslation
         let lockAt = theme.layout.voiceLockTranslation
         voiceOverlay.applyHoldProgress(translation, cancelAt: cancelAt, lockAt: lockAt)
-        switch voice.update(translation: translation, cancelAt: cancelAt, lockAt: lockAt) {
-        case .cancel: voice.cancel()
-        case .lock: voice.lock()
-        case .send, .none: break
+        // Lock on crossing the well. Do not discard during the slide — the
+        // cancel hint must stay up and turn systemRed past 72pt.
+        if voice.update(translation: translation, cancelAt: cancelAt, lockAt: lockAt) == .lock {
+            voice.lock()
         }
     }
 

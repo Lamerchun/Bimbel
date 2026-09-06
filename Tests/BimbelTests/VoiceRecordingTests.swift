@@ -29,6 +29,27 @@ final class VoiceRecordingTests: XCTestCase {
         XCTAssertNil(VoiceGesture.outcome(translation: CGPoint(x: 40, y: 10), cancelAt: cancelAt, lockAt: lockAt))
     }
 
+    func testFinishAfterBeginReturnsATakeWithoutCrashing() {
+        let voice = VoiceRecordingController()
+        voice.begin()
+        XCTAssertEqual(voice.state, .recording)
+        let take = voice.finish()
+        XCTAssertNotNil(take)
+        XCTAssertEqual(voice.state, .idle)
+        XCTAssertGreaterThanOrEqual(take?.duration ?? 0, 0.2)
+        XCTAssertEqual(take?.url.pathExtension, "m4a")
+    }
+
+    func testCancelHintTurnsSystemRedPastSeventyTwoPoints() {
+        let overlay = VoiceLockOverlay()
+        overlay.apply(theme: .default)
+        overlay.showRecording()
+        overlay.applyHoldProgress(CGPoint(x: -71, y: 0), cancelAt: 72, lockAt: 56)
+        XCTAssertEqual(overlay.cancelHintTextColor, ConversationTheme.default.colors.headerSubtitle)
+        overlay.applyHoldProgress(CGPoint(x: -72, y: 0), cancelAt: 72, lockAt: 56)
+        XCTAssertEqual(overlay.cancelHintTextColor, .systemRed)
+    }
+
     func testReleaseUnderThresholdSendsAndPastThresholdCancels() {
         let cancelAt = ConversationTheme.default.layout.voiceCancelTranslation
         let lockAt = ConversationTheme.default.layout.voiceLockTranslation

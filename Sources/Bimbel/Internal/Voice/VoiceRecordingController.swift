@@ -23,8 +23,11 @@ enum VoiceGesture {
     }
 }
 
+/// Hold-mic recorder. Stop the meter *before* `AVAudioRecorder.stop()`.
+/// Do not deactivate the audio session on the same turn as `stop()` — that
+/// races mediaserverd (process death / SpringBoard) and drops the take.
 @MainActor
-final class VoiceRecordingController {
+final class VoiceRecordingController: NSObject, AVAudioRecorderDelegate {
     enum State: Equatable {
         case idle
         case recording
@@ -39,6 +42,8 @@ final class VoiceRecordingController {
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
     private var samples: [Float] = []
+    /// Main-thread only. `nonisolated(unsafe)` so Swift 6 `deinit` can invalidate.
+    private nonisolated(unsafe) var displayLink: CADisplayLink?
     var onLevel: ((Float, TimeInterval) -> Void)?
     var onStateChange: ((State) -> Void)?
 
@@ -51,9 +56,14 @@ final class VoiceRecordingController {
 
     var isPreviewing: Bool { previewPlayer?.isPlaying == true }
 
+    deinit {
+        displayLink?.invalidate()
+    }
+
     func begin() {
+        stopMeter()
         stopPreview()
-        stopRecorder(keepFile: false)
+        abandonRecorder(deleteFile: true)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("bimbel-voice-\(UUID().uuidString).m4a")
         fileURL = url
         accumulated = 0
@@ -98,11 +108,9 @@ final class VoiceRecordingController {
     }
 
     func cancel() {
+        stopMeter()
         stopPreview()
-        stopRecorder(keepFile: false)
-        if let fileURL {
-            try? FileManager.default.removeItem(at: fileURL)
-        }
+        abandonRecorder(deleteFile: true)
         fileURL = nil
         samples = []
         accumulated = 0
@@ -113,11 +121,14 @@ final class VoiceRecordingController {
 
     /// Hands the temp file to the host. Package does not keep ownership after send.
     func finish() -> VoiceTake? {
+        stopMeter()
         let duration = currentDuration
         let waves = samples
         let url = fileURL
         stopPreview()
-        stopRecorder(keepFile: true)
+        // Stop the writer and leave the session up. Deactivating here is the
+        // SpringBoard crash: `stop()` is still flushing the m4a.
+        finalizeRecorderKeepingFile()
         fileURL = nil
         samples = []
         accumulated = 0
@@ -169,25 +180,36 @@ final class VoiceRecordingController {
                 AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
             ]
             let recorder = try AVAudioRecorder(url: url, settings: settings)
+            recorder.delegate = self
             recorder.isMeteringEnabled = true
+            recorder.prepareToRecord()
             recorder.record()
             self.recorder = recorder
-            tick()
+            startMeter()
         } catch {
-            // Visual state-machine still runs if the recorder cannot start (simulator / Linux CI).
-            tick()
+            startMeter()
         }
     }
 
-    private func tick() {
+    private func startMeter() {
+        stopMeter()
+        let link = CADisplayLink(target: self, selector: #selector(pulseMeter))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 10, maximum: 20, preferred: 15)
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopMeter() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func pulseMeter() {
         guard state == .recording || state == .locked else { return }
         recorder?.updateMeters()
         let level = recorder?.averagePower(forChannel: 0) ?? Float.random(in: -40...(-8))
         pushSample(level)
         onLevel?(level, currentDuration)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            MainActor.assumeIsolated { self?.tick() }
-        }
     }
 
     private func pushSample(_ value: Float) {
@@ -203,12 +225,24 @@ final class VoiceRecordingController {
         samples.append(normalized)
     }
 
-    private func stopRecorder(keepFile: Bool) {
-        recorder?.stop()
+    private func finalizeRecorderKeepingFile() {
+        let active = recorder
         recorder = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        if !keepFile, let fileURL {
+        active?.stop()
+    }
+
+    private func abandonRecorder(deleteFile: Bool) {
+        stopMeter()
+        let active = recorder
+        recorder = nil
+        active?.stop()
+        if deleteFile, let fileURL {
             try? FileManager.default.removeItem(at: fileURL)
         }
+    }
+
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        _ = flag
+        _ = recorder
     }
 }

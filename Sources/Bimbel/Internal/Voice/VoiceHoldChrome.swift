@@ -25,6 +25,7 @@ final class VoiceLockOverlay: UIView {
     let previewButton = HitTargetButton(type: .system)
     let sendButton = HitTargetButton(type: .system)
     let discardButton = HitTargetButton(type: .system)
+    var cancelHintTextColor: UIColor { cancelHint.textColor }
     private var theme = ConversationTheme.default
     private var locked = false
     private var holdHeight: NSLayoutConstraint!
