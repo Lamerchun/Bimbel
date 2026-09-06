@@ -623,6 +623,8 @@ extension ConversationViewController: UICollectionViewDelegate {
         guard !isSelecting else { return nil }
         guard indexPath.item < rows.count, case .message(let message, _) = rows[indexPath.item] else { return nil }
         if case .system = message.kind { return nil }
+        // Targeted bubble preview only. `previewProvider` stays nil so UIKit
+        // does not present a fullscreen preview controller.
         return UIContextMenuConfiguration(identifier: message.id as NSString, previewProvider: nil) { [weak self] _ in
             self?.menu(for: message)
         }
@@ -652,6 +654,7 @@ extension ConversationViewController: UICollectionViewDelegate {
         else { return nil }
         let params = UIPreviewParameters()
         params.backgroundColor = .clear
+        params.visiblePath = cell.previewVisiblePath
         return UITargetedPreview(view: cell.previewTarget, parameters: params)
     }
 
@@ -675,7 +678,7 @@ extension ConversationViewController: UICollectionViewDelegate {
         ).map { item in
             UIAction(
                 title: item.title,
-                image: UIImage(systemName: item.systemImage),
+                image: item.lineImage,
                 attributes: item.isDestructive ? .destructive : []
             ) { [weak self] _ in
                 self?.performMenu(item, on: message)

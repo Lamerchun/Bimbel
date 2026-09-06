@@ -41,7 +41,7 @@ conversation.apply(snapshot, animatingDifferences: true)
 - Bubble clusters: `grouping.maxGap` 180s, same direction, same author in a group. `layout.groupingInnerSpacing` 3 and `layout.groupingSequenceSpacing` 10 — not media-stack gap (`layout.mediaStackGap` 2). Group avatar at cluster end; sender name when the author changes. Collapse the timestamp footer when the next cell shares the short time and outgoing status; never hide sending / failed; show Edited when `editedAt != nil`.
 - `MessageKind`: `text(String, preview:)`, `image`, `video`, `voice`, `document`, `system`. No separate link-preview kind.
 - `onSendText` / `onSendAttachments` / `onSendVoice` return `Message?` (non-nil → package inserts; nil → host already applied).
-- Long-press V1: targeted bubble preview, reaction rail, then Reply / Copy or Save / Forward / Delete / Select / Edit. Edit only when `canEdit` is true (`onEdit` is a host callback — no Crop/Draw/Text pipeline this pass). Swipe right stays Reply. Select mode shows a toolbar with Delete + Forward; composer stays on `keyboardLayoutGuide`.
+- Long-press V1: targeted bubble preview (not fullscreen), reaction rail, then Reply / Copy or Save / Forward / Delete / Select / Edit. Edit only when `canEdit` is true (`onEdit` is a host callback — no Crop/Draw/Text pipeline this pass). Swipe right stays Reply. Select toolbar: Forward = secondary fill, Delete = systemRed; SF ultraLight line icons (composer family, no plates). Composer stays on `keyboardLayoutGuide`.
 
 ## Keyboard (do not “binary hide”)
 

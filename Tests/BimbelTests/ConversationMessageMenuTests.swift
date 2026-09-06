@@ -74,4 +74,17 @@ final class ConversationMessageMenuTests: XCTestCase {
         XCTAssertTrue(items.contains(.delete))
         XCTAssertTrue(ConversationMessageMenuItem.delete.isDestructive)
     }
+
+    func testShip3SelectionToolbarFillsAndLineIcons() {
+        XCTAssertEqual(ConversationSelectionChrome.deleteFill, UIColor.systemRed)
+        XCTAssertEqual(ConversationSelectionChrome.forwardFill, UIColor.secondarySystemFill)
+        XCTAssertEqual(UIImage.SymbolConfiguration.bimbelComposerLine, UIImage.SymbolConfiguration(pointSize: 22, weight: .ultraLight))
+        XCTAssertNotNil(ConversationMessageMenuItem.forward.lineImage)
+        XCTAssertNotNil(ConversationMessageMenuItem.delete.lineImage)
+
+        let bar = ConversationSelectionToolbar(frame: CGRect(x: 0, y: 0, width: 390, height: 52))
+        bar.apply(theme: .default, selectedCount: 2)
+        XCTAssertEqual(bar.deleteFillColor, ConversationSelectionChrome.deleteFill)
+        XCTAssertEqual(bar.forwardFillColor, ConversationSelectionChrome.forwardFill)
+    }
 }

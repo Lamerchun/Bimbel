@@ -1,4 +1,4 @@
-import Foundation
+import UIKit
 
 enum ConversationMessageMenuItem: Equatable {
     case reply
@@ -34,6 +34,10 @@ enum ConversationMessageMenuItem: Equatable {
     }
 
     var isDestructive: Bool { self == .delete }
+
+    var lineImage: UIImage? {
+        UIImage(systemName: systemImage, withConfiguration: .bimbelComposerLine)
+    }
 }
 
 enum ConversationMessageMenu {

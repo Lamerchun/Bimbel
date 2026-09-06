@@ -7,6 +7,11 @@ final class MessageCollectionCell: UICollectionViewCell {
     var onOpenURL: ((URL) -> Void)?
     var previewTarget: UIView { bubble }
 
+    /// Bubble silhouette for a targeted long-press preview — not a fullscreen lift.
+    var previewVisiblePath: UIBezierPath {
+        bubble.path(in: bubble.bounds)
+    }
+
     private let selectMark = UIImageView()
     private let avatarView = UIImageView()
     private let nameLabel = UILabel()
@@ -174,7 +179,7 @@ final class MessageCollectionCell: UICollectionViewCell {
         selectMark.isHidden = !isSelecting
         if isSelecting {
             let name = isSelected ? "checkmark.circle.fill" : "circle"
-            selectMark.image = UIImage(systemName: name)
+            selectMark.image = UIImage(systemName: name, withConfiguration: .bimbelComposerLine)
             selectMark.tintColor = isSelected ? theme.colors.accent : theme.colors.metadata
         }
 
