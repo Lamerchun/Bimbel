@@ -69,6 +69,10 @@ public struct ConversationTheme: Sendable {
         public var fabFill: UIColor
         public var fabIcon: UIColor
         public var waveform: UIColor
+        /// Inbox mute glyph. Ship 1: tertiary.
+        public var inboxMute: UIColor
+        /// Inbox unread pill text. Ship 1: white on accent fill.
+        public var inboxUnreadText: UIColor
 
         public init(
             wallpaper: UIColor,
@@ -95,7 +99,9 @@ public struct ConversationTheme: Sendable {
             linkTitle: UIColor,
             fabFill: UIColor,
             fabIcon: UIColor,
-            waveform: UIColor
+            waveform: UIColor,
+            inboxMute: UIColor = .tertiaryLabel,
+            inboxUnreadText: UIColor = .white
         ) {
             self.wallpaper = wallpaper
             self.outgoingBubble = outgoingBubble
@@ -122,6 +128,8 @@ public struct ConversationTheme: Sendable {
             self.fabFill = fabFill
             self.fabIcon = fabIcon
             self.waveform = waveform
+            self.inboxMute = inboxMute
+            self.inboxUnreadText = inboxUnreadText
         }
 
         public static let bimbel = Colors(
@@ -347,6 +355,18 @@ public struct ConversationTheme: Sendable {
         public var composerGap: CGFloat
         public var replySwipeThreshold: CGFloat
         public var listHorizontalInset: CGFloat
+        /// Ship 1 inbox row. Same token family as the thread — not a second system.
+        public var inboxAvatar: CGFloat
+        public var inboxRowMinHeight: CGFloat
+        public var inboxHInset: CGFloat
+        public var inboxAvatarGap: CGFloat
+        public var inboxTitlePreviewGap: CGFloat
+        public var inboxTrailingGap: CGFloat
+        public var inboxMute: CGFloat
+        public var inboxUnreadPillHeight: CGFloat
+        public var inboxUnreadDot: CGFloat
+        /// Hairline under the text column, not under the avatar.
+        public var inboxSeparatorInset: CGFloat
 
         public init(
             bubbleMaxWidthRatio: CGFloat = 0.78,
@@ -362,7 +382,17 @@ public struct ConversationTheme: Sendable {
             composerGap: CGFloat = 8,
             listComposerGap: CGFloat = 8,
             replySwipeThreshold: CGFloat = 56,
-            listHorizontalInset: CGFloat = 10
+            listHorizontalInset: CGFloat = 10,
+            inboxAvatar: CGFloat = 56,
+            inboxRowMinHeight: CGFloat = 76,
+            inboxHInset: CGFloat = 16,
+            inboxAvatarGap: CGFloat = 12,
+            inboxTitlePreviewGap: CGFloat = 2,
+            inboxTrailingGap: CGFloat = 8,
+            inboxMute: CGFloat = 16,
+            inboxUnreadPillHeight: CGFloat = 20,
+            inboxUnreadDot: CGFloat = 10,
+            inboxSeparatorInset: CGFloat = 68
         ) {
             self.bubbleMaxWidthRatio = bubbleMaxWidthRatio
             self.sequenceGap = sequenceGap
@@ -378,6 +408,16 @@ public struct ConversationTheme: Sendable {
             self.composerGap = composerGap
             self.replySwipeThreshold = replySwipeThreshold
             self.listHorizontalInset = listHorizontalInset
+            self.inboxAvatar = inboxAvatar
+            self.inboxRowMinHeight = inboxRowMinHeight
+            self.inboxHInset = inboxHInset
+            self.inboxAvatarGap = inboxAvatarGap
+            self.inboxTitlePreviewGap = inboxTitlePreviewGap
+            self.inboxTrailingGap = inboxTrailingGap
+            self.inboxMute = inboxMute
+            self.inboxUnreadPillHeight = inboxUnreadPillHeight
+            self.inboxUnreadDot = inboxUnreadDot
+            self.inboxSeparatorInset = inboxSeparatorInset
         }
 
         public static let bimbel = Layout()
@@ -392,6 +432,14 @@ public struct ConversationTheme: Sendable {
         public var chip: UIFont
         public var linkTitle: UIFont
         public var linkSummary: UIFont
+        /// Inbox title. Ship 1: headline / semibold.
+        public var inboxTitle: UIFont
+        /// Inbox time. Ship 1: caption1.
+        public var inboxTime: UIFont
+        /// Inbox preview and `Draft:`. Ship 1: subheadline (italic for draft).
+        public var inboxPreview: UIFont
+        /// Inbox unread pill. Ship 1: caption2 bold.
+        public var inboxUnread: UIFont
 
         public init(
             body: UIFont = .systemFont(ofSize: 16, weight: .regular),
@@ -400,7 +448,11 @@ public struct ConversationTheme: Sendable {
             headerSubtitle: UIFont = .systemFont(ofSize: 12, weight: .regular),
             chip: UIFont = .systemFont(ofSize: 12, weight: .medium),
             linkTitle: UIFont = .systemFont(ofSize: 15, weight: .semibold),
-            linkSummary: UIFont = .systemFont(ofSize: 13, weight: .regular)
+            linkSummary: UIFont = .systemFont(ofSize: 13, weight: .regular),
+            inboxTitle: UIFont = Self.ship1InboxTitle,
+            inboxTime: UIFont = .preferredFont(forTextStyle: .caption1),
+            inboxPreview: UIFont = .preferredFont(forTextStyle: .subheadline),
+            inboxUnread: UIFont = Self.ship1InboxUnread
         ) {
             self.body = body
             self.metadata = metadata
@@ -409,6 +461,20 @@ public struct ConversationTheme: Sendable {
             self.chip = chip
             self.linkTitle = linkTitle
             self.linkSummary = linkSummary
+            self.inboxTitle = inboxTitle
+            self.inboxTime = inboxTime
+            self.inboxPreview = inboxPreview
+            self.inboxUnread = inboxUnread
+        }
+
+        private static var ship1InboxTitle: UIFont {
+            let size = UIFont.preferredFont(forTextStyle: .headline).pointSize
+            return .systemFont(ofSize: size, weight: .semibold)
+        }
+
+        private static var ship1InboxUnread: UIFont {
+            let size = UIFont.preferredFont(forTextStyle: .caption2).pointSize
+            return .systemFont(ofSize: size, weight: .bold)
         }
 
         public static let bimbel = Fonts()

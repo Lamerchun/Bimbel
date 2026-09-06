@@ -28,7 +28,8 @@ conversation.apply(snapshot, animatingDifferences: true)
 
 - `InboxItem`: `id` (`ConversationID`), `title`, `preview`, `timestamp`, `avatar`, `unreadCount` **or** `markedUnread`, `isMuted`, `isPinned`, `draftPreview?`, `previewSenderName?`, `lastOutgoingDelivery?`, `previewOverride?`, `participantNames`, `isTyping`, `isGroup`.
 - Preview priority: host override → draft (`Draft:` / voice draft + mic) → typing → group `Sender:` + body → 1:1 body (attachment labels such as Photo, Video, Voice).
-- Row: 56 pt avatar, mute glyph on the title line, fixed 2-line preview, unread pill or empty unread dot, outgoing ticks only when the preview is the host’s last message. Search hides unread + status.
+- Row tokens (Ship 1, `ConversationTheme.layout` / fonts / colors — same family): `inboxAvatar` 56, `inboxRowMinHeight` 76, `inboxHInset` 16, `inboxAvatarGap` 12, `inboxTitlePreviewGap` 2, `inboxTrailingGap` 8, `inboxMute` 16, `inboxUnreadPillHeight` 20 capsule, `inboxUnreadDot` 10, `inboxSeparatorInset` 68 (hairline under text). Title headline/semibold; time caption1; preview subheadline 2 lines; `Draft:` subheadline italic; unread caption2 bold white on accent (`>99` → `99+`). Mute tertiary `speaker.slash` ultraLight 16. Outgoing ticks only when the preview is the host’s last message. Search hides unread + status.
+- Swipe: leading Read/Unread = accent, Pin = system gray; trailing Mute = system gray, Delete = systemRed last. SF ultraLight white on fills.
 - `InboxActions`: `onOpen`, `onToggleRead`, `onTogglePin`, `onToggleMute`, `onDelete`. Archive on the long-press menu only when `supportsArchive` / `onArchive` is set. Host persists, then `apply` again.
 - Search V1 is `UISearchController` (title + participant names only). Optional `Pinned` section from `isPinned`.
 - Package never mints conversation IDs.

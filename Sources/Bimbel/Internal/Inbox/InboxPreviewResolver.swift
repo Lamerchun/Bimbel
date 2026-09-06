@@ -50,9 +50,9 @@ enum InboxPreviewResolver {
         for item: InboxItem,
         theme: ConversationTheme
     ) -> NSAttributedString {
-        let font = InboxRowMetrics.previewFont(theme: theme)
+        let font = theme.fonts.inboxPreview
         let color = theme.colors.headerSubtitle
-        let italic = italicPreviewFont(matching: font)
+        let italic = InboxRowMetrics.draftFont(theme: theme)
         switch kind(for: item) {
         case .override(let text):
             return NSAttributedString(string: text, attributes: [
@@ -84,7 +84,8 @@ enum InboxPreviewResolver {
                 .font: font,
                 .foregroundColor: color
             ]))
-            if let mic = UIImage(systemName: "mic.fill")?.withRenderingMode(.alwaysTemplate) {
+            let micConfig = UIImage.SymbolConfiguration(pointSize: font.pointSize, weight: .ultraLight)
+            if let mic = UIImage(systemName: "mic", withConfiguration: micConfig)?.withRenderingMode(.alwaysTemplate) {
                 let attachment = NSTextAttachment()
                 attachment.image = mic.withTintColor(color, renderingMode: .alwaysTemplate)
                 let side = font.pointSize + 1
@@ -133,12 +134,5 @@ enum InboxPreviewResolver {
         case .body(let text):
             return text
         }
-    }
-
-    private static func italicPreviewFont(matching font: UIFont) -> UIFont {
-        if let descriptor = font.fontDescriptor.withSymbolicTraits(.traitItalic) {
-            return UIFont(descriptor: descriptor, size: font.pointSize)
-        }
-        return UIFont.italicSystemFont(ofSize: font.pointSize)
     }
 }

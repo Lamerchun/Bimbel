@@ -99,7 +99,12 @@ open class InboxViewController: UIViewController {
         tableView.backgroundColor = .clear
         tableView.isOpaque = false
         tableView.contentInsetAdjustmentBehavior = .never
-        tableView.separatorInset = UIEdgeInsets(top: 0, left: InboxRowMetrics.separatorInset, bottom: 0, right: 0)
+        tableView.separatorInset = UIEdgeInsets(
+            top: 0,
+            left: theme.layout.inboxSeparatorInset,
+            bottom: 0,
+            right: 0
+        )
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = InboxRowMetrics.estimatedRowHeight(theme: theme)
         tableView.keyboardDismissMode = .onDrag
@@ -156,6 +161,12 @@ open class InboxViewController: UIViewController {
         wallpaper.backgroundColor = theme.colors.wallpaper
         view.backgroundColor = theme.colors.wallpaper
         tableView.separatorColor = theme.colors.composerStroke
+        tableView.separatorInset = UIEdgeInsets(
+            top: 0,
+            left: theme.layout.inboxSeparatorInset,
+            bottom: 0,
+            right: 0
+        )
         tableView.backgroundColor = .clear
         tableView.estimatedRowHeight = InboxRowMetrics.estimatedRowHeight(theme: theme)
         headerView.apply(title: titleText, theme: theme)
@@ -252,7 +263,8 @@ extension InboxViewController: UITableViewDelegate {
             self?.actions.onToggleRead?(item.id)
             done(true)
         }
-        read.backgroundColor = theme.colors.accent
+        read.backgroundColor = InboxSwipeChrome.readFill(theme: theme)
+        read.image = InboxSwipeChrome.symbol(item.showsUnread ? "envelope.open" : "envelope.badge")
         let pin = UIContextualAction(
             style: .normal,
             title: item.isPinned ? String(localized: "Unpin") : String(localized: "Pin")
@@ -260,7 +272,8 @@ extension InboxViewController: UITableViewDelegate {
             self?.actions.pin(item.id)
             done(true)
         }
-        pin.backgroundColor = .systemOrange
+        pin.backgroundColor = InboxSwipeChrome.pinFill
+        pin.image = InboxSwipeChrome.symbol(item.isPinned ? "pin.slash" : "pin")
         let config = UISwipeActionsConfiguration(actions: [read, pin])
         config.performsFirstActionWithFullSwipe = false
         return config
@@ -278,11 +291,14 @@ extension InboxViewController: UITableViewDelegate {
             self?.actions.mute(item.id)
             done(true)
         }
-        mute.backgroundColor = .systemGray
+        mute.backgroundColor = InboxSwipeChrome.muteFill
+        mute.image = InboxSwipeChrome.symbol(item.isMuted ? "bell" : "bell.slash")
         let delete = UIContextualAction(style: .destructive, title: String(localized: "Delete")) { [weak self] _, _, done in
             self?.actions.onDelete?(item.id)
             done(true)
         }
+        delete.backgroundColor = InboxSwipeChrome.deleteFill
+        delete.image = InboxSwipeChrome.symbol("trash")
         // First action sits at the trailing edge; delete is last in the catalog and at the edge.
         let config = UISwipeActionsConfiguration(actions: [delete, mute])
         config.performsFirstActionWithFullSwipe = false

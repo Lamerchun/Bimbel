@@ -1,23 +1,18 @@
 import UIKit
 
 enum InboxRowMetrics {
-    static let avatarSize: CGFloat = 56
-    static let horizontalInset: CGFloat = 14
-    static let avatarTextGap: CGFloat = 12
     static let previewLines = 2
-    static let unreadDotSize: CGFloat = 10
-    static let verticalPadding: CGFloat = 12
 
-    static var separatorInset: CGFloat {
-        horizontalInset + avatarSize + avatarTextGap
+    static func previewFont(theme: ConversationTheme) -> UIFont {
+        theme.fonts.inboxPreview
     }
 
-    static func previewFont(theme _: ConversationTheme) -> UIFont {
-        .systemFont(ofSize: 15, weight: .regular)
+    static func draftFont(theme: ConversationTheme) -> UIFont {
+        italic(matching: theme.fonts.inboxPreview)
     }
 
     static func previewHeight(theme: ConversationTheme) -> CGFloat {
-        previewHeight(font: previewFont(theme: theme))
+        previewHeight(font: theme.fonts.inboxPreview)
     }
 
     static func previewHeight(font: UIFont) -> CGFloat {
@@ -25,7 +20,44 @@ enum InboxRowMetrics {
     }
 
     static func estimatedRowHeight(theme: ConversationTheme) -> CGFloat {
-        let title = ceil(UIFont.systemFont(ofSize: 16, weight: .regular).lineHeight)
-        return verticalPadding + title + 4 + previewHeight(theme: theme) + verticalPadding
+        let title = ceil(theme.fonts.inboxTitle.lineHeight)
+        let stacked = verticalPadding(theme: theme)
+            + title
+            + theme.layout.inboxTitlePreviewGap
+            + previewHeight(theme: theme)
+            + verticalPadding(theme: theme)
+        return max(theme.layout.inboxRowMinHeight, stacked)
+    }
+
+    static func verticalPadding(theme: ConversationTheme) -> CGFloat {
+        max(0, (theme.layout.inboxRowMinHeight - theme.layout.inboxAvatar) / 2)
+    }
+
+    static func italic(matching font: UIFont) -> UIFont {
+        if let descriptor = font.fontDescriptor.withSymbolicTraits(.traitItalic) {
+            return UIFont(descriptor: descriptor, size: font.pointSize)
+        }
+        return UIFont.italicSystemFont(ofSize: font.pointSize)
+    }
+
+    static func muteSymbol(size: CGFloat) -> UIImage? {
+        let config = UIImage.SymbolConfiguration(pointSize: size, weight: .ultraLight)
+        return UIImage(systemName: "speaker.slash", withConfiguration: config)
+    }
+}
+
+enum InboxSwipeChrome {
+    static let pinFill = UIColor.systemGray
+    static let muteFill = UIColor.systemGray
+    static let deleteFill = UIColor.systemRed
+
+    static func readFill(theme: ConversationTheme) -> UIColor {
+        theme.colors.accent
+    }
+
+    static func symbol(_ name: String) -> UIImage? {
+        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .ultraLight)
+        return UIImage(systemName: name, withConfiguration: config)?
+            .withTintColor(.white, renderingMode: .alwaysOriginal)
     }
 }

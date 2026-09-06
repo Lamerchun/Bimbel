@@ -86,9 +86,51 @@ final class InboxRowContractTests: XCTestCase {
         XCTAssertTrue(cell.showsOutgoingStatus)
     }
 
-    func testAvatarSizeAndSeparatorInset() {
-        XCTAssertEqual(InboxRowMetrics.avatarSize, 56)
-        XCTAssertEqual(InboxRowMetrics.separatorInset, 82)
+    func testShip1InboxLayoutTokens() {
+        let layout = ConversationTheme.default.layout
+        XCTAssertEqual(layout.inboxAvatar, 56)
+        XCTAssertEqual(layout.inboxRowMinHeight, 76)
+        XCTAssertEqual(layout.inboxHInset, 16)
+        XCTAssertEqual(layout.inboxAvatarGap, 12)
+        XCTAssertEqual(layout.inboxTitlePreviewGap, 2)
+        XCTAssertEqual(layout.inboxTrailingGap, 8)
+        XCTAssertEqual(layout.inboxMute, 16)
+        XCTAssertEqual(layout.inboxUnreadPillHeight, 20)
+        XCTAssertEqual(layout.inboxUnreadDot, 10)
+        XCTAssertEqual(layout.inboxSeparatorInset, 68)
+    }
+
+    func testShip1InboxTypeAndColorTokens() {
+        let theme = ConversationTheme.default
+        XCTAssertEqual(theme.fonts.inboxTitle.pointSize, UIFont.preferredFont(forTextStyle: .headline).pointSize)
+        XCTAssertEqual(theme.fonts.inboxTime, UIFont.preferredFont(forTextStyle: .caption1))
+        XCTAssertEqual(theme.fonts.inboxPreview, UIFont.preferredFont(forTextStyle: .subheadline))
+        XCTAssertEqual(theme.fonts.inboxUnread.pointSize, UIFont.preferredFont(forTextStyle: .caption2).pointSize)
+        XCTAssertEqual(theme.colors.inboxMute, UIColor.tertiaryLabel)
+        XCTAssertEqual(theme.colors.inboxUnreadText, UIColor.white)
+        XCTAssertEqual(InboxSwipeChrome.pinFill, UIColor.systemGray)
+        XCTAssertEqual(InboxSwipeChrome.muteFill, UIColor.systemGray)
+        XCTAssertEqual(InboxSwipeChrome.deleteFill, UIColor.systemRed)
+        XCTAssertEqual(InboxSwipeChrome.readFill(theme: theme), theme.colors.accent)
+        XCTAssertEqual(BimbelFormatters.badgeText(100), "99+")
+    }
+
+    func testRowUsesLockedTypeAndMuteChrome() {
+        let item = InboxItem(
+            id: "j",
+            title: "Jules",
+            preview: "Call me when you land.",
+            timestamp: Date(),
+            unreadCount: 4,
+            isMuted: true
+        )
+        let cell = InboxRowCell(style: .default, reuseIdentifier: InboxRowCell.reuseID)
+        cell.configure(item: item, theme: .default, hidesTrailingAccessories: false)
+        XCTAssertEqual(cell.titleFont, ConversationTheme.default.fonts.inboxTitle)
+        XCTAssertEqual(cell.timeFont, ConversationTheme.default.fonts.inboxTime)
+        XCTAssertEqual(cell.unreadFont, ConversationTheme.default.fonts.inboxUnread)
+        XCTAssertEqual(cell.unreadTextColor, UIColor.white)
+        XCTAssertEqual(cell.muteTint, UIColor.tertiaryLabel)
     }
 
     func testSwipeAndMenuOrder() {
