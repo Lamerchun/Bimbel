@@ -197,6 +197,7 @@ final class ConversationHeaderView: UIView {
 
         let selecting = selectionCount != nil
         avatarView.isHidden = selecting
+        avatarWidth?.constant = selecting ? 0 : 32
         if selecting {
             videoButton.isHidden = true
             callButton.isHidden = true
